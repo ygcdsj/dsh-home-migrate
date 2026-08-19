@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.5 (2026-08-19)
+
+### 修复
+
+- **package.json 混入 UTF-8 BOM**（0.0.4 发布时带出）：DSH `dsh plugin` 解析 bundle manifest 时 `JSON.parse` 崩溃（`Unexpected token '﻿'`）。已剥离 BOM 并全仓库复查无残留。
+
 ## 0.0.4 (2026-08-19)
 
 ### 改进
