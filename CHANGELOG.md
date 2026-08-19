@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.7 (2026-08-19)
+
+- 收录安全审查与核查文档：`docs/SECURITY_REVIEW.md` + `docs/VERIFICATION.md`（README / README_EN 双语加链接；tarball `files` 已含 `docs/`，发布物自带安全记录）。
+- 修复 `package.json` description 的 GBK 乱码（npm 元数据）。npm 曾发布的 0.0.6 为旧构建（含乱码 description、缺安全文档），已撤回；GitHub Release v0.0.6 附件为正确构建，不受影响。npm 以 0.0.7 为准。
+
 ## 0.0.6 (2026-08-20)
 
 安全审查（SECURITY_REVIEW.md F1–F10）修复：路径穿越、HTTP API 认证、导入代码执行边界、脱敏漏报、膨胀限制、信息泄漏与并发清理。
