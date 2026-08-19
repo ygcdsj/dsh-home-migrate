@@ -55,6 +55,14 @@ dev_inject_plugin <this directory>
 5. **Wait for verification**: `pnpm install` + verification chain run automatically (L1 install / L2 link resolution / L3 `dsh --dump-config`); the import only finishes when all pass
 6. **Switch to it**: the import creates a **NEW profile** (`<name>-migrated`); switch the default profile manually after verification, then clean up `~/.dsh/.dshmig-backup/` once confirmed
 
+> **Launching the migrated profile (important)**: `dsh web` is an alias of `dsh --profile web` and always boots the pristine `web` profile — the migration lives in the NEW `<name>-migrated` profile, so you must name it explicitly:
+>
+> ```bash
+> dsh --profile web-migrated      # boot the migrated profile (GUI)
+> ```
+>
+> Running `dsh web` opens the untouched native environment, so migrated plugins/skins/settings won't show up there — that is expected, not a fault. Once verified, you may retire the old profile and rename `<name>-migrated` to `web`, or set the `DSH_PROFILE` environment variable so `dsh web` points at the migrated environment.
+
 > Import never overwrites your existing profile; any failure rolls back automatically.
 
 ## Usage
@@ -79,6 +87,8 @@ dev_inject_plugin <this directory>
 ## FAQ
 
 **Will import overwrite my current config?** No. MVP only creates a new profile (`<name>-migrated`); settings.yaml is overwritten after backup (uncheck it before importing if unwanted).
+
+**Why can't I see the migrated plugins with `dsh web`?** `dsh web` is just an alias of `dsh --profile web` and boots the pristine `web` profile; the migration tool **never overwrites your existing profile**, so everything lives in the NEW `<name>-migrated` profile. Boot it with `dsh --profile <name>-migrated`. Once verified, retire the old profile and rename `<name>-migrated` to `web` (or set the `DSH_PROFILE` env var) so `dsh web` points at the migrated environment.
 
 **Cross-OS migration?** MVP is same-OS only; cross-OS is rejected at preflight.
 

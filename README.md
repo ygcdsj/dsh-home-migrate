@@ -55,6 +55,14 @@ dev_inject_plugin <本目录>
 5. **等待验证**：自动执行 pnpm install + 验证链（L1 安装 / L2 链接解析 / L3 `dsh --dump-config`），全部通过才收尾
 6. **切换使用**：导入为**新建 profile**（`<name>-migrated`），验证通过后手动切换默认 profile；确认无误后清理 `~/.dsh/.dshmig-backup/`
 
+> **启动迁移后的 profile（重要）**：`dsh web` 是 `dsh --profile web` 的别名，永远启动原生的 `web` profile——迁移成果在新建的 `<name>-migrated` profile 里，必须显式指定：
+>
+> ```bash
+> dsh --profile web-migrated     # 启动迁移后的 profile（GUI）
+> ```
+>
+> 用 `dsh web` 打开的是未迁移的原生环境，自然看不到迁移过来的插件/皮肤/设置，这不是故障。确认迁移无误后，可停用旧 profile 并将 `<name>-migrated` 重命名为 `web`，或设置 `DSH_PROFILE` 环境变量，让 `dsh web` 直接指向迁移后的环境。
+
 > 导入全程不覆盖你现有的 profile；任何一步失败自动回滚。
 
 ## 用法
@@ -79,6 +87,8 @@ dev_inject_plugin <本目录>
 ## FAQ
 
 **导入会覆盖我现在的配置吗？** 不会。MVP 只新建 profile（`<name>-migrated`）；settings.yaml 在备份后覆盖（可在导入前取消勾选）。
+
+**为什么 `dsh web` 看不到迁移的插件？** `dsh web` 只是 `dsh --profile web` 的别名，启动的是原生的 `web` profile；迁移工具**不覆盖现有 profile**，成果都在新建的 `<name>-migrated` 里。请用 `dsh --profile <name>-migrated` 启动。确认迁移无误后，可停用旧 profile 并把 `<name>-migrated` 重命名为 `web`（或设置 `DSH_PROFILE` 环境变量），让 `dsh web` 直接指向迁移后的环境。
 
 **跨 OS 可以迁移吗？** MVP 限定同 OS；跨 OS 会在预检阶段明确拒绝。
 
