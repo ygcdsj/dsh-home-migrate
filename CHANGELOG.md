@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.2 (2026-08-19)
+
+### 修复
+
+- **bundle 装配缺失**：声明 `dsh.bundle.patch`（`cordis.patch.yml`）并加入 files——此前 `dsh plugin add` 安装后只作为普通依赖、不激活为 profile 层（本机开发走注入器未暴露，npm 正式安装暴露）。0.0.2 起插件可被 DSH 正常装配加载。
+
 ## 0.0.1 (2026-08-19)
 
 MVP — 首个可用版本（experimental）。

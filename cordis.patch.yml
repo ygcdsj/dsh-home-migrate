@@ -1,0 +1,5 @@
+# dsh-migrate bundle 层：装配迁移工具（host 工具 + 设置页 UI 入口）。
+- insert:
+    - id: dsh-migrate
+      name: 'dsh-migrate'
+      config: {}
