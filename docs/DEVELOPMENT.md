@@ -321,7 +321,7 @@ migrate-<profile>-<yyyyMMdd-HHmmss>.dshmig
 |---|---|---|---|
 | 1 | `git+https://` 依赖（skin 类）目标机重新拉取需网络/凭据 | 离线/受限目标机 install 失败 | 导入预检提示"含 git 依赖，需网络"；v2 考虑 git 依赖 vendor 化 |
 | 2 | pnpm build 审批自动化细节未知 | install 卡在审批 | M3 勘察 dsh/skin-market/dshmarket 现成处理，勘察后固化 |
-| 3 | 默认 profile 切换机制未知 | 导入后用户不知怎么用 | M3 勘察；MVP 只给手动指引 |
+| 3 | ~~默认 profile 切换机制未知~~ 已勘察（`@deepseek-ai/dsh` 0.1.0-rc.7 源码）：`web` 为硬编码别名（`dsh web` ≡ `dsh --profile web`），无默认 profile、无切换命令、无 `DSH_PROFILE` 环境变量；切换 = 重命名 `$DSH_HOME/profiles/` 下目录 | 导入后用户不知怎么用 | 文档已给重命名指引（README「启动迁移后的 profile」） |
 | 4 | `dsh --dump-config` / `dsh doctor` 命令存在性未验证 | 验证链依赖不实 | 验证链降级设计（§9），M3 实测后固化 |
 | 5 | cordis.yml / cordis.patch.yml 格式随版本漂移 | 导入后插件状态异常 | manifest 记录 dshVersion + allowlist；patch 文件逐条校验 entry id（复用 dev_fix_patch 的查重思路） |
 | 6 | settings.yaml 含未知键/结构变化 | 覆盖导入破坏目标机设置 | 覆盖前必备份；导入报告 diff；合并语义 v2 |

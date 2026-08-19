@@ -69,7 +69,7 @@ dev_inject_plugin <this directory>
 > dsh --profile web-migrated      # boot the migrated profile (GUI)
 > ```
 >
-> Running `dsh web` opens the untouched native environment, so migrated plugins/skins/settings won't show up there — that is expected, not a fault. Once verified, you may retire the old profile and rename `<name>-migrated` to `web`, or set the `DSH_PROFILE` environment variable so `dsh web` points at the migrated environment.
+> Running `dsh web` opens the untouched native environment, so migrated plugins/skins/settings won't show up there — that is expected, not a fault. `web` is a **hardcoded alias** in the dsh CLI (`dsh web` ≡ `dsh --profile web`); DSH has no default-profile mechanism and no switch command. The only way to make `dsh web` boot the migrated environment is to **rename the profile directory**: once verified, retire/move the old `web` directory, then rename `<name>-migrated` to `web` (both live under `$DSH_HOME/profiles/`). Until then, keep launching explicitly with `dsh --profile <name>-migrated`.
 
 > Import never overwrites your existing profile; any failure rolls back automatically.
 
@@ -101,7 +101,7 @@ dev_inject_plugin <this directory>
 
 **Will import overwrite my current config?** No. MVP only creates a new profile (`<name>-migrated`); settings.yaml is overwritten after backup (uncheck it before importing if unwanted).
 
-**Why can't I see the migrated plugins with `dsh web`?** `dsh web` is just an alias of `dsh --profile web` and boots the pristine `web` profile; the migration tool **never overwrites your existing profile**, so everything lives in the NEW `<name>-migrated` profile. Boot it with `dsh --profile <name>-migrated`. Once verified, retire the old profile and rename `<name>-migrated` to `web` (or set the `DSH_PROFILE` env var) so `dsh web` points at the migrated environment.
+**Why can't I see the migrated plugins with `dsh web`?** `dsh web` is a hardcoded alias of `dsh --profile web` and boots the pristine `web` profile; the migration tool **never overwrites your existing profile**, so everything lives in the NEW `<name>-migrated` profile. Boot it with `dsh --profile <name>-migrated`. Once verified, retire the old profile and rename `<name>-migrated` to `web` (rename the directory under `$DSH_HOME/profiles/`; DSH has no default-profile mechanism) so `dsh web` boots the migrated environment.
 
 **Cross-OS migration?** MVP is same-OS only; cross-OS is rejected at preflight.
 
