@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.3 (2026-08-19)
+
+### 修复
+
+- **运行时依赖解析崩溃**（0.0.2 引入的装配后暴露）：`schemastery`/`@deepseek-ai/dsh-tools`/`@deepseek-ai/dsh-home-paths` 原声明为 peerDependencies，pnpm 隔离 node_modules 下宿主不保证提供 → DSH 启动即崩（`Cannot find package 'schemastery'`）。已移入 `dependencies` 由 pnpm 装入插件依赖树；顺带修正 `dsh-home-paths` 错误版本范围（`>=0.1.0-rc` 解析不到 `0.0.1-rc.3`）。
+
 ## 0.0.2 (2026-08-19)
 
 ### 修复
