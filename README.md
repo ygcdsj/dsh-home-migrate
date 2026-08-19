@@ -4,7 +4,15 @@
 
 [English](./README_EN.md)
 
+[![npm version](https://img.shields.io/npm/v/dsh-migrate)](https://www.npmjs.com/package/dsh-migrate)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-migrate)](https://www.npmjs.com/package/dsh-migrate)
+[![license](https://img.shields.io/npm/l/dsh-migrate)](https://github.com/ygcdsj/dsh-home-migrate/blob/main/LICENSE)
+
 从任意 DSH 安装打包配置，在目标机还原为**新建 profile**，全程校验、失败自动回滚。不做云、不做历史、不做跨品牌。
+
+## 工作流程
+
+![dsh-migrate 迁移流程总览](https://raw.githubusercontent.com/ygcdsj/dsh-home-migrate/main/assets/migration-flow.svg)
 
 ## 与现有项目的区别
 
@@ -78,6 +86,8 @@ dev_inject_plugin <本目录>
 `dsh_migrate_export { dryRun: true }`（预览）/ `{ dryRun: false, outDir }`（打包）；`dsh_migrate_import { archive, dryRun: true }`（预检）/ `{ archive }`（导入，失败自动回滚）。
 
 ## 安全边界
+
+![dsh-migrate 导入安全门禁](https://raw.githubusercontent.com/ygcdsj/dsh-home-migrate/main/assets/security-gates.svg)
 
 - **凭据尽力排除/脱敏，非绝对保证**：`.credentials.yaml`、`.env*` 硬排除；settings/presets/vendor 配置文件内疑似凭据字段自动脱敏（`<redacted>`）并记录于 `secretReport`；**未扫描文件清单（`unscannedFiles`）随报告导出，请核对后再传输**
 - **vendor 包配置文件内的凭据会原地脱敏**：迁移不搬运凭据的必然代价——迁移后的 vendor 包若依赖被脱敏的值（如 API token），需要在目标机重新配置；README/导出报告会提示

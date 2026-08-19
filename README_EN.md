@@ -4,7 +4,15 @@
 
 [中文](./README.md)
 
+[![npm version](https://img.shields.io/npm/v/dsh-migrate)](https://www.npmjs.com/package/dsh-migrate)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-migrate)](https://www.npmjs.com/package/dsh-migrate)
+[![license](https://img.shields.io/npm/l/dsh-migrate)](https://github.com/ygcdsj/dsh-home-migrate/blob/main/LICENSE)
+
 Pack configuration from any DSH install, restore it into a **NEW profile** on the target machine, with verification at every step and automatic rollback on failure. No cloud, no history, no cross-brand imports.
+
+## Workflow
+
+![dsh-migrate migration flow overview](https://raw.githubusercontent.com/ygcdsj/dsh-home-migrate/main/assets/migration-flow.svg)
 
 ## Why not just use X?
 
@@ -78,6 +86,8 @@ dev_inject_plugin <this directory>
 `dsh_migrate_export { dryRun: true }` (preview) / `{ dryRun: false, outDir }` (package); `dsh_migrate_import { archive, dryRun: true }` (preflight) / `{ archive }` (import, auto-rollback on failure).
 
 ## Security boundary
+
+![dsh-migrate import security gates](https://raw.githubusercontent.com/ygcdsj/dsh-home-migrate/main/assets/security-gates.svg)
 
 - **Credentials are best-effort excluded/redacted, not guaranteed**: `.credentials.yaml` and `.env*` are hard-excluded; suspected credential fields in settings/presets/vendor config files are redacted (`<redacted>`) and recorded in `secretReport`; an **unscanned-files list (`unscannedFiles`)** ships with the report — review it before transferring
 - **Credentials inside vendor config files are redacted in place**: the inevitable cost of not migrating credentials — if a migrated vendor package depends on a redacted value (e.g. an API token), reconfigure it on the target; the README/export report calls this out

@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 400" width="860" height="400" role="img" aria-label="dsh-migrate 导入安全门禁">
+  <style>
+    :root{
+      --bg:#ffffff; --panel:#f6f8fa; --stroke:#d0d7de;
+      --text:#1f2328; --muted:#59636e;
+      --accent:#0969da; --accent-soft:#ddf4ff;
+      --ok:#1a7f37; --ok-soft:#dafbe1;
+      --danger:#cf222e; --danger-soft:#ffebe9;
+      --arrow:#8c959f;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0d1117; --panel:#161b22; --stroke:#30363d;
+        --text:#e6edf3; --muted:#9198a1;
+        --accent:#58a6ff; --accent-soft:#12273d;
+        --ok:#3fb950; --ok-soft:#12291a;
+        --danger:#f85149; --danger-soft:#2d1518;
+        --arrow:#6e7681;
+      }
+    }
+    .bg{fill:var(--bg)}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif}
+    .title{font-size:20px;font-weight:700;fill:var(--text)}
+    .subtitle{font-size:12.5px;fill:var(--muted)}
+    .shield{fill:url(#shieldGrad);stroke:#1f6feb;stroke-width:1}
+    .shield-check{stroke:#ffffff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .gate-title{font-size:13px;font-weight:700;fill:var(--text)}
+    .gate-desc{font-size:10.5px;fill:var(--muted)}
+    .arrow{stroke:var(--arrow);stroke-width:2;fill:none}
+    .box-ok{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.2}
+    .box-danger{fill:var(--danger-soft);stroke:var(--danger);stroke-width:1.2}
+    .out-title{font-size:12.5px;font-weight:700;fill:var(--text)}
+    .out-sub{font-size:11px;fill:var(--muted)}
+  </style>
+  <defs>
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#0969da"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#8c959f"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="860" height="400" fill="#ffffff"/>
+
+  <text x="20" y="44" class="title">导入安全门禁</text>
+  <text x="20" y="70" class="subtitle">Import Security Gates · 预检六道门禁全部通过才执行导入；任一失败即拒绝，零写入</text>
+
+  <!-- Gate 1 -->
+  <g transform="translate(79,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="79" y="204" text-anchor="middle" class="gate-title">同 OS 门禁</text>
+  <text x="79" y="228" text-anchor="middle" class="gate-desc">归档与目标机</text>
+  <text x="79" y="246" text-anchor="middle" class="gate-desc">必须同 OS</text>
+
+  <!-- Gate 2 -->
+  <g transform="translate(219,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="219" y="204" text-anchor="middle" class="gate-title">新鲜度硬校验</text>
+  <text x="219" y="228" text-anchor="middle" class="gate-desc">仅接受全新</text>
+  <text x="219" y="246" text-anchor="middle" class="gate-desc">未动过的 DSH</text>
+
+  <!-- Gate 3 -->
+  <g transform="translate(359,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="359" y="204" text-anchor="middle" class="gate-title">拒符号链接</text>
+  <text x="359" y="228" text-anchor="middle" class="gate-desc">settings.yaml</text>
+  <text x="359" y="246" text-anchor="middle" class="gate-desc">为链接则拒绝</text>
+
+  <!-- Gate 4 -->
+  <g transform="translate(499,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="499" y="204" text-anchor="middle" class="gate-title">路径白名单</text>
+  <text x="499" y="228" text-anchor="middle" class="gate-desc">manifest 三字段</text>
+  <text x="499" y="246" text-anchor="middle" class="gate-desc">+ ensureUnder</text>
+
+  <!-- Gate 5 -->
+  <g transform="translate(639,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="639" y="204" text-anchor="middle" class="gate-title">禁用安装脚本</text>
+  <text x="639" y="228" text-anchor="middle" class="gate-desc">--ignore-scripts</text>
+  <text x="639" y="246" text-anchor="middle" class="gate-desc">默认开启</text>
+
+  <!-- Gate 6 -->
+  <g transform="translate(779,156)">
+    <path class="shield" d="M0,-22 L15,-13 L15,3 C15,15 8,24 0,28 C-8,24 -15,15 -15,3 L-15,-13 Z"/>
+    <path class="shield-check" d="M-6,3 L-1,9 L8,-6"/>
+  </g>
+  <text x="779" y="204" text-anchor="middle" class="gate-title">体积上限</text>
+  <text x="779" y="228" text-anchor="middle" class="gate-desc">8MB body</text>
+  <text x="779" y="246" text-anchor="middle" class="gate-desc">10k 条目 / 512MB</text>
+
+  <!-- Pass-through arrows -->
+  <line class="arrow" x1="144" y1="195" x2="156" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="284" y1="195" x2="296" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="424" y1="195" x2="436" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="564" y1="195" x2="576" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="704" y1="195" x2="716" y2="195" marker-end="url(#arr)"/>
+
+  <!-- Outcomes -->
+  <rect class="box-ok" x="20" y="310" width="400" height="48" rx="12"/>
+  <circle cx="52" cy="334" r="12" fill="var(--ok)"/>
+  <path d="M46,334 l5,5 l9,-10" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="74" y="331" class="out-title">全部通过 → 执行导入</text>
+  <text x="74" y="349" class="out-sub">新建 profile + --ignore-scripts 安装</text>
+
+  <rect class="box-danger" x="440" y="310" width="400" height="48" rx="12"/>
+  <circle cx="472" cy="334" r="12" fill="var(--danger)"/>
+  <path d="M466,328 l12,12 M478,328 l-12,12" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <text x="494" y="331" class="out-title">任一失败 → 拒绝导入</text>
+  <text x="494" y="349" class="out-sub">预检逐项列出原因 · 不写入任何文件</text>
+</svg>

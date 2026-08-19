@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 560" width="860" height="560" role="img" aria-label="dsh-migrate 迁移流程总览">
+  <style>
+    :root{
+      --bg:#ffffff; --panel:#f6f8fa; --stroke:#d0d7de;
+      --text:#1f2328; --muted:#59636e;
+      --accent:#0969da; --accent-soft:#ddf4ff;
+      --danger:#cf222e; --danger-soft:#ffebe9;
+      --arrow:#8c959f;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0d1117; --panel:#161b22; --stroke:#30363d;
+        --text:#e6edf3; --muted:#9198a1;
+        --accent:#58a6ff; --accent-soft:#12273d;
+        --danger:#f85149; --danger-soft:#2d1518;
+        --arrow:#6e7681;
+      }
+    }
+    .bg{fill:var(--bg)}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif}
+    .title{font-size:20px;font-weight:700;fill:var(--text)}
+    .subtitle{font-size:12.5px;fill:var(--muted)}
+    .node{fill:var(--panel);stroke:var(--stroke);stroke-width:1.2}
+    .node-title{font-size:15px;font-weight:700;fill:var(--text)}
+    .node-item{font-size:11.5px;fill:var(--text)}
+    .num{fill:#ffffff;font-size:16px;font-weight:700}
+    .dot{fill:var(--accent)}
+    .divider{stroke:var(--stroke);stroke-width:1}
+    .arrow{stroke:var(--arrow);stroke-width:2;fill:none}
+    .arrow-rollback{stroke:var(--danger);stroke-width:2;fill:none;stroke-dasharray:6 4}
+    .rollback{fill:var(--danger-soft);stroke:var(--danger);stroke-width:1.4;stroke-dasharray:7 5}
+    .rollback-title{font-size:13.5px;font-weight:700;fill:var(--danger)}
+    .rollback-item{font-size:11px;fill:var(--text)}
+    .footer{font-size:11.5px;fill:var(--muted)}
+  </style>
+  <defs>
+    <linearGradient id="numGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#0969da"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#8c959f"/>
+    </marker>
+    <marker id="arrDanger" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#cf222e"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="860" height="560" fill="#ffffff"/>
+
+  <text x="20" y="46" class="title">迁移流程总览</text>
+  <text x="20" y="72" class="subtitle">Migration Overview · 导出 → 打包 → 预检 → 导入 → 验证，任一步失败自动回滚</text>
+
+  <!-- Row 1: Export / Archive / Preflight -->
+  <g transform="translate(20,110)">
+    <rect class="node" width="240" height="170" rx="14" filter="url(#shadow)"/>
+    <circle cx="32" cy="34" r="16" fill="url(#numGrad)"/>
+    <text x="32" y="40" text-anchor="middle" class="num">1</text>
+    <text x="58" y="40" class="node-title">导出 · Export</text>
+    <line class="divider" x1="16" y1="58" x2="224" y2="58"/>
+    <circle class="dot" cx="22" cy="73.5" r="2.5"/>
+    <text x="30" y="78" class="node-item">扫描 profiles / vendor 等</text>
+    <circle class="dot" cx="22" cy="97.5" r="2.5"/>
+    <text x="30" y="102" class="node-item">凭据脱敏 + secretReport</text>
+    <circle class="dot" cx="22" cy="121.5" r="2.5"/>
+    <text x="30" y="126" class="node-item">硬排除凭据 / .env 文件</text>
+  </g>
+
+  <g transform="translate(310,110)">
+    <rect class="node" width="240" height="170" rx="14" filter="url(#shadow)"/>
+    <circle cx="32" cy="34" r="16" fill="url(#numGrad)"/>
+    <text x="32" y="40" text-anchor="middle" class="num">2</text>
+    <text x="58" y="40" class="node-title">打包 · Archive</text>
+    <line class="divider" x1="16" y1="58" x2="224" y2="58"/>
+    <circle class="dot" cx="22" cy="73.5" r="2.5"/>
+    <text x="30" y="78" class="node-item">生成单一 .dshmig 归档</text>
+    <circle class="dot" cx="22" cy="97.5" r="2.5"/>
+    <text x="30" y="102" class="node-item">manifest + sha256 校验</text>
+    <circle class="dot" cx="22" cy="121.5" r="2.5"/>
+    <text x="30" y="126" class="node-item">记录 unscannedFiles</text>
+  </g>
+
+  <g transform="translate(600,110)">
+    <rect class="node" width="240" height="170" rx="14" filter="url(#shadow)"/>
+    <circle cx="32" cy="34" r="16" fill="url(#numGrad)"/>
+    <text x="32" y="40" text-anchor="middle" class="num">3</text>
+    <text x="58" y="40" class="node-title">预检 · Preflight</text>
+    <line class="divider" x1="16" y1="58" x2="224" y2="58"/>
+    <circle class="dot" cx="22" cy="73.5" r="2.5"/>
+    <text x="30" y="78" class="node-item">同 OS / 版本 / 磁盘</text>
+    <circle class="dot" cx="22" cy="97.5" r="2.5"/>
+    <text x="30" y="102" class="node-item">目标机新鲜度硬校验</text>
+    <circle class="dot" cx="22" cy="121.5" r="2.5"/>
+    <text x="30" y="126" class="node-item">仅接受全新未动 DSH</text>
+  </g>
+
+  <!-- Row 2: Import / Verify + rollback note -->
+  <g transform="translate(600,340)">
+    <rect class="node" width="240" height="170" rx="14" filter="url(#shadow)"/>
+    <circle cx="32" cy="34" r="16" fill="url(#numGrad)"/>
+    <text x="32" y="40" text-anchor="middle" class="num">4</text>
+    <text x="58" y="40" class="node-title">导入 · Import</text>
+    <line class="divider" x1="16" y1="58" x2="224" y2="58"/>
+    <circle class="dot" cx="22" cy="73.5" r="2.5"/>
+    <text x="30" y="78" class="node-item">新建 &lt;name&gt;-migrated</text>
+    <circle class="dot" cx="22" cy="97.5" r="2.5"/>
+    <text x="30" y="102" class="node-item">不覆盖现有 profile</text>
+    <circle class="dot" cx="22" cy="121.5" r="2.5"/>
+    <text x="30" y="126" class="node-item">--ignore-scripts 安装</text>
+  </g>
+
+  <g transform="translate(310,340)">
+    <rect class="node" width="240" height="170" rx="14" filter="url(#shadow)"/>
+    <circle cx="32" cy="34" r="16" fill="url(#numGrad)"/>
+    <text x="32" y="40" text-anchor="middle" class="num">5</text>
+    <text x="58" y="40" class="node-title">验证 · Verify</text>
+    <line class="divider" x1="16" y1="58" x2="224" y2="58"/>
+    <circle class="dot" cx="22" cy="73.5" r="2.5"/>
+    <text x="30" y="78" class="node-item">L1 安装 / L2 链接解析</text>
+    <circle class="dot" cx="22" cy="97.5" r="2.5"/>
+    <text x="30" y="102" class="node-item">L3 dsh --dump-config</text>
+    <circle class="dot" cx="22" cy="121.5" r="2.5"/>
+    <text x="30" y="126" class="node-item">通过收尾 · 失败回滚</text>
+  </g>
+
+  <g transform="translate(20,340)">
+    <rect class="rollback" width="240" height="170" rx="14"/>
+    <text x="20" y="34" class="rollback-title">失败 → 自动回滚</text>
+    <text x="20" y="70" class="rollback-item">新建内容清理 + 快照恢复</text>
+    <text x="20" y="96" class="rollback-item">依赖级尽力恢复</text>
+    <text x="20" y="122" class="rollback-item">.dshmig-backup/ 保留现场</text>
+  </g>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="260" y1="195" x2="304" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="550" y1="195" x2="594" y2="195" marker-end="url(#arr)"/>
+  <line class="arrow" x1="720" y1="282" x2="720" y2="334" marker-end="url(#arr)"/>
+  <line class="arrow" x1="600" y1="425" x2="556" y2="425" marker-end="url(#arr)"/>
+  <line class="arrow-rollback" x1="310" y1="425" x2="268" y2="425" marker-end="url(#arrDanger)"/>
+
+  <text x="430" y="548" text-anchor="middle" class="footer">全程不覆盖现有 profile · 验证通过后手动切换默认 profile（dsh --profile &lt;name&gt;-migrated）</text>
+</svg>
