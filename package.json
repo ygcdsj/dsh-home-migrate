@@ -1,7 +1,7 @@
 {
   "name": "dsh-migrate",
   "version": "0.0.6",
-  "description": "DSH 閰嶇疆杩佺Щ宸ュ叿锛氬鍑?鎵撳寘/瀵煎叆 + 鏍￠獙鍥炴粴锛堝悓 OS锛屾柊寤?profile锛夈€侲xport/package/import DSH config with verification and rollback.",
+  "description": "DSH 配置迁移工具：导出/打包/导入 + 校验回滚（同 OS，新建 profile）。Export/package/import DSH config with verification and rollback.",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",
@@ -71,4 +71,3 @@
     "schemastery": "^3.18.0"
   }
 }
-
