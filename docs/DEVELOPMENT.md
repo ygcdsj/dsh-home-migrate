@@ -109,7 +109,7 @@ profiles/web/
 
 **本项目定案**（据此回答目录/包名问题）：
 - 包名：`dsh-migrate`——符合社区裸名 `dsh-<feature>` 标准；发布前仍 `npm view dsh-migrate` 查重
-- 目录：`C:\dsh explore\dsh-migrate` 即仓库根（包根），未来 `git init` 后直接 push，结构与发布结构零迁移
+- 目录：仓库根即包根（`<repo>/dsh-migrate`），结构与发布结构零迁移
 - 依赖：`@deepseek-ai/dsh-home-paths` 进 peerDependencies；**所有 home 路径解析（扫描/重写/导入）一律走官方 API，不手拼路径**；UI 展示路径用 `dshHomeDisplay()`（顺带满足"不泄漏机器路径"的安全要求）
 
 ## 3.6 构建链路（本机事实，2026-08）
@@ -335,7 +335,7 @@ migrate-<profile>-<yyyyMMdd-HHmmss>.dshmig
 
 | 里程碑 | 内容 | 验收 | 估时 |
 |---|---|---|---|
-| M1 骨架 | `dev_scaffold_plugin`（form=hybrid, name=dsh-migrate, dir=`C:\dsh explore\dsh-migrate`）→ `dev_build_plugin` → `dev_inject_plugin` | 设置页出现"迁移"入口（占位），host 工具可调用 | 0.5d |
+| M1 骨架 | `dev_scaffold_plugin`（form=hybrid, name=dsh-migrate, dir=`<repo>/dsh-migrate`）→ `dev_build_plugin` → `dev_inject_plugin` | 设置页出现"迁移"入口（占位），host 工具可调用 | 0.5d |
 | M2 导出+打包 | scan / secret / manifest / archive + dry-run 预览 | ✅ 完成（2026-08-19 实测：本机导出 20 文件/1.28MB，清单与 §3 基线一致；dry-run 预览 + 真实产物验证通过） | 1d |
 | M3 导入+link | 预检 / 还原 / rewrite / install（含 §8 勘察项） | ✅ 完成（2026-08-19 沙箱端到端实测：pnpm install OK → link resolve OK → dsh --dump-config OK；含 DSH_HOME 隔离、bundle 契约前置校验、settings 回滚修复） | 1.5d |
 | M4 校验+回滚 | verify 链 + rollback + 故障注入 | ✅ 完成（2026-08-19：fault-injection.mjs 19/19 通过——sha256 篡改/跨 OS/vendor 缺失/bundle 契约/pnpm 失败回滚/凭据排除/归档损坏/staging 清理；修复 staging 空壳残留 bug） | 1d |
