@@ -111,6 +111,8 @@ npm run test:install # 完整链路（pnpm install + dump-config，需完整权�
 
 规格与设计决策见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)（本机实测基线、生态惯例、勘察结论、风险登记）。
 
+安全审查与修复记录：原始审查报告见 [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md)，核查与修复验证见 [docs/VERIFICATION.md](docs/VERIFICATION.md)。
+
 ## 路线图（v2）
 
 - sessions/storages 迁移（借鉴 dsh-session-sync git 镜像思路）

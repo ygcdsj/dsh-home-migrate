@@ -110,6 +110,8 @@ npm run test:install # full chain (pnpm install + dump-config, needs full permis
 
 Spec and design decisions: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) (machine-verified baselines, ecosystem conventions, survey findings, risk register).
 
+Security review & fix records: the original review report is [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md); verification and fix evidence is in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
 ## Roadmap (v2)
 
 - Sessions/storages migration (dsh-session-sync git-mirror approach)
