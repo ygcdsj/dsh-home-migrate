@@ -264,7 +264,7 @@ export function importDsh(opts: ImportOptions): ImportResult {
       const inst = run('pnpm', ['install', '--reporter=append-only'], newProfileDir, 600_000)
       const ok = inst.code === 0
       verify.push({ level: 1, name: 'pnpm install', ok, detail: ok ? 'ok' : `exit=${String(inst.code)} ${(inst.err || inst.out).slice(-500)}` })
-      if (!ok) throw new Error(`pnpm install failed (exit=${String(inst.code)})`)
+      if (!ok) throw new Error(`pnpm install failed (exit=${String(inst.code)}): ${(inst.err || inst.out).slice(-800)}`)
 
       // 验证链 level 2：链接解析（junction/symlink → vendor）
       for (const l of manifest.links) {
@@ -287,7 +287,7 @@ export function importDsh(opts: ImportOptions): ImportResult {
       // 注意：dsh CLI 读 DSH_HOME 环境变量而非 cwd——必须显式传入目标 home，防止指向真实 home
       const dc = run('dsh', ['--dump-config', '--profile', plan.newProfile], home, 60_000, { DSH_HOME: home })
       verify.push({ level: 3, name: 'dsh --dump-config', ok: dc.code === 0, detail: dc.code === 0 ? 'ok' : `exit=${String(dc.code)} ${(dc.err || dc.out).slice(-2000)}` })
-      if (dc.code !== 0) throw new Error(`dsh --dump-config failed (exit=${String(dc.code)})`)
+      if (dc.code !== 0) throw new Error(`dsh --dump-config failed (exit=${String(dc.code)}): ${(dc.err || dc.out).slice(-800)}`)
     }
 
     rmSync(join(home, '.dshmig-staging'), { recursive: true, force: true })
