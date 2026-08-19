@@ -1,0 +1,69 @@
+{
+  "name": "dsh-migrate",
+  "version": "0.0.1",
+  "description": "DSH 配置迁移工具：导出/打包/导入 + 校验回滚（同 OS，新建 profile）。Export/package/import DSH config with verification and rollback.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/types/index.d.ts",
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "migration",
+    "backup",
+    "restore",
+    "profile"
+  ],
+  "files": [
+    "lib",
+    "docs",
+    "README_EN.md",
+    "CHANGELOG.md"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.0.1-rc <2",
+    "@deepseek-ai/dsh-home-paths": ">=0.1.0-rc <1",
+    "@deepseek-ai/dsh-tools": ">=0.0.1-rc <2",
+    "cordis": ">=4.0.0-rc <5",
+    "schemastery": "^3.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^18.3.31",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:bash": "bash scripts/build.sh",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:client": "tsdown",
+    "test": "node test/smoke-import.mjs && node test/fault-injection.mjs && node test/freshness-check.mjs",
+    "test:install": "node test/smoke-install.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0"
+  }
+}
