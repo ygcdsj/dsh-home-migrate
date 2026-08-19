@@ -22,9 +22,9 @@ export function apply(ctx: Context): void {
   ctx.effect(() => [
     ctx.tools.register(defineTool({
       name: 'dsh_migrate_export',
-      description: '导出 DSH 配置迁移归档（.dshmig）。dryRun=true（默认安全）返回预览：文件清单/总大小/排除项/link 依赖/疑似凭据；dryRun=false 打包产物并返回路径与 manifest 摘要。凭据硬排除+脱敏，不随包传输。',
+      description: '导出 DSH 配置迁移归档（.dshmig）。dryRun=true（默认安全，省略即预览）返回预览：文件清单/总大小/排除项/link 依赖/疑似凭据/未扫描文件；dryRun=false 打包产物并返回路径与 manifest 摘要。凭据尽力硬排除+脱敏（secretReport 含 unscannedFiles 供核对），归档仅导入你信任的来源。',
       parameters: {
-        dryRun: { type: 'boolean', required: true, description: 'true=仅预览；false=真正打包' },
+        dryRun: { type: 'boolean', description: 'true=仅预览（默认）；false=真正打包' },
         outDir: { type: 'string', description: '产物目录（默认 ~/dsh-migrate-exports）' },
       },
       output: {
@@ -33,27 +33,28 @@ export function apply(ctx: Context): void {
       },
       async execute(args: { dryRun?: boolean; outDir?: string }) {
         try {
-          return JSON.stringify(exportDsh({ dryRun: args?.dryRun === true, outDir: args?.outDir }), null, 2)
+          return JSON.stringify(exportDsh({ dryRun: args?.dryRun !== false, outDir: args?.outDir }), null, 2)
         } catch (e) {
-          return JSON.stringify({ ok: false, dryRun: args?.dryRun === true, error: String(e) }, null, 2)
+          return JSON.stringify({ ok: false, dryRun: args?.dryRun !== false, error: String(e) }, null, 2)
         }
       },
     })),
 
     ctx.tools.register(defineTool({
       name: 'dsh_migrate_import',
-      description: '导入 DSH 配置迁移归档（.dshmig）：预检（同 OS/版本）→ 备份目标机 → 新建 profile（<name>-migrated，重名递增）→ link: 重写 → vendor/presets 还原 → pnpm install → 验证链（链接解析 + dsh --dump-config）。失败自动回滚（配置级完全恢复）。dryRun=true 只预检不写入。',
+      description: '导入 DSH 配置迁移归档（.dshmig）：预检（同 OS/版本/freshness/settings 非 symlink）→ 备份目标机 → 新建 profile（<name>-migrated，重名递增）→ link: 重写 → vendor/presets 还原 → pnpm install（默认 --ignore-scripts，防不可信归档依赖脚本）→ 验证链（链接解析 + dsh --dump-config）。失败自动回滚（配置级完全恢复）。dryRun=true 只预检不写入。',
       parameters: {
         archive: { type: 'string', required: true, description: '.dshmig 归档路径' },
         dryRun: { type: 'boolean', description: 'true=仅预检与计划（不写入）' },
         includeSettings: { type: 'boolean', description: '是否覆盖 settings.yaml（默认 true，先备份）' },
         skipInstall: { type: 'boolean', description: '跳过 pnpm install 与依赖级验证（测试用）' },
+        allowScripts: { type: 'boolean', description: 'true=允许依赖安装脚本（默认 false：pnpm install --ignore-scripts）' },
       },
       output: {
         schema: { type: 'string' },
         render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }],
       },
-      async execute(args: { archive?: string; dryRun?: boolean; includeSettings?: boolean; skipInstall?: boolean }) {
+      async execute(args: { archive?: string; dryRun?: boolean; includeSettings?: boolean; skipInstall?: boolean; allowScripts?: boolean }) {
         try {
           if (!args?.archive) return JSON.stringify({ ok: false, dryRun: true, error: 'archive 参数必填' }, null, 2)
           return JSON.stringify(importDsh({
@@ -61,6 +62,7 @@ export function apply(ctx: Context): void {
             dryRun: args.dryRun === true,
             includeSettings: args.includeSettings !== false,
             skipInstall: args.skipInstall === true,
+            allowScripts: args.allowScripts === true,
           }), null, 2)
         } catch (e) {
           return JSON.stringify({ ok: false, dryRun: args?.dryRun === true, error: String(e) }, null, 2)

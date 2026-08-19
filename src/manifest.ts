@@ -3,6 +3,7 @@
  */
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { assertSafeRel } from './safe.js'
 
 export const MANIFEST_FORMAT_VERSION = 1
 export const TOOL_VERSION = '0.0.1'
@@ -12,6 +13,9 @@ export interface ManifestLink { dep: string; vendorPath: string }
 export interface SecretReport {
   excludedFiles: string[]
   redactedFields: { file: string; field: string; line: number }[]
+  /** 未做凭据扫描的文件（二进制/不可读/代码文件/vendor 非配置），最多 100 条；unscannedTotal 为总数。 */
+  unscannedFiles: string[]
+  unscannedTotal: number
 }
 
 export interface Manifest {
@@ -67,8 +71,13 @@ export function parseManifest(json: string): Manifest {
   if (m.formatVersion !== MANIFEST_FORMAT_VERSION) {
     throw new Error(`unsupported manifest formatVersion ${String(m.formatVersion)} (expected ${MANIFEST_FORMAT_VERSION})`)
   }
-  if (!Array.isArray(m.files) || !Array.isArray(m.links) || !m.source) {
-    throw new Error('malformed manifest: missing files/links/source')
+  if (!Array.isArray(m.files) || !Array.isArray(m.links) || !m.source || !Array.isArray(m.profiles)) {
+    throw new Error('malformed manifest: missing files/links/source/profiles')
   }
+  // 路径安全（SECURITY_REVIEW F1）：manifest 字段全由归档作者控制，解析即校验，
+  // 拒绝 ..、绝对路径、盘符、空段、\、空白（zip 条目层 canonical 剥 ..，此处管 manifest 层）
+  for (const f of m.files) assertSafeRel(f.path, 'files[].path')
+  for (const l of m.links) assertSafeRel(l.vendorPath.replace(/^vendor\//, ''), 'links[].vendorPath')
+  for (const p of m.profiles) assertSafeRel(p, 'profiles[]')
   return m
 }

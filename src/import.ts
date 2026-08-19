@@ -6,13 +6,14 @@
  */
 import {
   copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync,
-  rmSync, writeFileSync,
+  rmSync, rmdirSync, writeFileSync,
 } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join, resolve, sep } from 'node:path'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { extractArchive, readZipText } from './archive.js'
 import { parseManifest, hashFile, type Manifest } from './manifest.js'
+import { ensureUnder } from './safe.js'
 
 export interface ImportOptions {
   archive: string
@@ -20,6 +21,7 @@ export interface ImportOptions {
   includeSettings?: boolean // 默认 true：备份后覆盖目标机 settings.yaml
   skipInstall?: boolean     // 测试/预览：跳过 pnpm install 与依赖级验证
   dryRun?: boolean          // 只做预检与计划，不写任何东西
+  allowScripts?: boolean    // 默认 false：pnpm install --ignore-scripts（SECURITY_REVIEW F3）
 }
 
 export interface Check { name: string; ok: boolean; detail?: string }
@@ -129,6 +131,15 @@ function buildPlan(archive: string, manifest: Manifest, opts: ImportOptions): Im
     detail: `source=${manifest.source.platform} target=${process.platform} (MVP 同 OS)`,
   })
 
+  // settings.yaml 为符号链接时拒绝覆盖（SECURITY_REVIEW F7：备份与覆盖都会穿透链接）
+  const settingsPath = join(targetHome, 'settings.yaml')
+  const settingsSymlink = existsSync(settingsPath) && lstatSync(settingsPath).isSymbolicLink()
+  checks.push({
+    name: 'settings-not-symlink',
+    ok: !settingsSymlink,
+    detail: settingsSymlink ? 'settings.yaml is a symlink — refusing to overwrite through it' : 'ok',
+  })
+
   const targetVersion = detectDshVersion()
   const verOk = targetVersion === 'unknown' ? undefined : semverGte(targetVersion, MIN_DSH)
   checks.push({
@@ -146,7 +157,7 @@ function buildPlan(archive: string, manifest: Manifest, opts: ImportOptions): Im
     `rewrite ${manifest.links.length} link: deps → vendor/…`,
     `restore vendor/ (${manifest.links.length} packages) & .agent-presets (merge, no overwrite)`,
     ...(opts.includeSettings !== false ? ['overwrite settings.yaml (backup taken above)'] : ['skip settings.yaml']),
-    ...(opts.skipInstall ? [] : ['pnpm install in profile (network may be required for git:/npm: deps)', 'verify: link resolution → dsh --dump-config']),
+    ...(opts.skipInstall ? [] : ['pnpm install in profile (--ignore-scripts default, see allowScripts; network may be required for git:/npm: deps)', 'verify: link resolution → dsh --dump-config']),
   ]
 
   return { manifest, targetHome, newProfile, checks, steps, warnings }
@@ -184,23 +195,28 @@ export function importDsh(opts: ImportOptions): ImportResult {
     extractArchive(opts.archive, staging)
     const bad: string[] = []
     for (const f of manifest.files) {
-      const abs = join(staging, f.path)
+      // 纵深防御：files[].path 已过 parseManifest 白名单，此处再断言不越 staging（F1）
+      const abs = ensureUnder(staging, join(staging, f.path), 'staging read')
       if (!existsSync(abs)) { bad.push(`${f.path}: missing`); continue }
       if (hashFile(abs) !== f.sha256) bad.push(`${f.path}: sha256 mismatch`)
     }
     if (bad.length > 0) throw new Error(`archive verification failed:\n${bad.slice(0, 10).join('\n')}`)
 
     // 2. 备份目标机 settings.yaml（记录覆盖前状态，回滚时恢复或删除）
+    //    预检已拦 symlink；此处仍防御（F7：copyFileSync 会穿透链接覆盖目标）
+    if (existsSync(targetSettings) && lstatSync(targetSettings).isSymbolicLink()) {
+      throw new Error('settings.yaml is a symlink — refusing to overwrite through it')
+    }
     hadSettings = existsSync(targetSettings) && lstatSync(targetSettings).isFile()
     if (hadSettings) {
       copyFileSync(targetSettings, join(backupDir, 'settings.yaml'))
     }
 
     // 3. 新建 profile 目录 + 4. 还原配置（含 link 重写）
-    const newProfileDir = join(home, 'profiles', plan.newProfile)
+    const newProfileDir = ensureUnder(join(home, 'profiles'), join(home, 'profiles', plan.newProfile), 'profile dir')
     mkdirSync(newProfileDir, { recursive: true })
     created.push(newProfileDir)
-    const srcProfile = join(staging, 'config', 'profiles', manifest.profiles[0])
+    const srcProfile = ensureUnder(staging, join(staging, 'config', 'profiles', manifest.profiles[0]), 'staging profile read')
     const pkgPath = join(srcProfile, 'package.json')
     if (!existsSync(pkgPath)) throw new Error('archive missing config/profiles/<name>/package.json')
     for (const f of ['package.json', 'cordis.yml', 'cordis.patch.yml', 'pnpm-workspace.yaml']) {
@@ -219,11 +235,11 @@ export function importDsh(opts: ImportOptions): ImportResult {
     writeFileSync(join(newProfileDir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
 
     // 5. vendor / presets / settings
-    const vendorSrc = join(staging, 'vendor')
+    const vendorSrc = ensureUnder(staging, join(staging, 'vendor'), 'staging vendor root')
     for (const l of manifest.links) {
       const rel = l.vendorPath.replace(/^vendor\//, '')
-      const src = join(vendorSrc, rel)
-      const dest = join(home, 'vendor', rel)
+      const src = ensureUnder(staging, join(vendorSrc, rel), 'staging vendor read')
+      const dest = ensureUnder(join(home, 'vendor'), join(home, 'vendor', rel), 'vendor dest')
       if (!existsSync(src)) { plan.warnings.push(`vendor/${rel} missing in archive — skipped`); continue }
       // bundle 契约校验（dsh resolveBundleDir 实测结论）：package.json 可解析 + dsh.bundle.patch 指向存在文件
       const vpkgPath = join(src, 'package.json')
@@ -248,7 +264,7 @@ export function importDsh(opts: ImportOptions): ImportResult {
     const presetsSrc = join(staging, 'presets')
     if (existsSync(presetsSrc)) {
       for (const entry of readdirSync(presetsSrc, { withFileTypes: true })) {
-        const dest = join(home, '.agent-presets', entry.name)
+        const dest = ensureUnder(join(home, '.agent-presets'), join(home, '.agent-presets', entry.name), 'preset dest')
         if (existsSync(dest)) { plan.warnings.push(`preset ${entry.name} already exists — skipped`); continue }
         copyDir(join(presetsSrc, entry.name), dest)
         created.push(dest)
@@ -256,12 +272,17 @@ export function importDsh(opts: ImportOptions): ImportResult {
     }
     if (opts.includeSettings !== false) {
       const s = join(staging, 'config', 'settings.yaml')
-      if (existsSync(s)) copyFileSync(s, targetSettings)
+      if (existsSync(s)) {
+        if (existsSync(targetSettings) && lstatSync(targetSettings).isSymbolicLink()) {
+          throw new Error('settings.yaml is a symlink — aborting (refusing to overwrite through it)')
+        }
+        copyFileSync(s, targetSettings)
+      }
     }
 
-    // 6. pnpm install（默认开启）
+    // 6. pnpm install（默认开启；默认 --ignore-scripts，防不可信归档的依赖安装脚本执行，F3）
     if (!opts.skipInstall) {
-      const inst = run('pnpm', ['install', '--reporter=append-only'], newProfileDir, 600_000)
+      const inst = run('pnpm', ['install', '--reporter=append-only', ...(opts.allowScripts ? [] : ['--ignore-scripts'])], newProfileDir, 600_000)
       const ok = inst.code === 0
       verify.push({ level: 1, name: 'pnpm install', ok, detail: ok ? 'ok' : `exit=${String(inst.code)} ${(inst.err || inst.out).slice(-500)}` })
       if (!ok) throw new Error(`pnpm install failed (exit=${String(inst.code)}): ${(inst.err || inst.out).slice(-800)}`)
@@ -290,7 +311,9 @@ export function importDsh(opts: ImportOptions): ImportResult {
       if (dc.code !== 0) throw new Error(`dsh --dump-config failed (exit=${String(dc.code)}): ${(dc.err || dc.out).slice(-800)}`)
     }
 
-    rmSync(join(home, '.dshmig-staging'), { recursive: true, force: true })
+    // 清理只删自己的 stamp 子目录（F10：并发导入共享 .dshmig-staging 根，勿清整根）
+    rmSync(staging, { recursive: true, force: true })
+    try { rmdirSync(join(home, '.dshmig-staging')) } catch { /* 根非空（并发导入）或已不存在：忽略 */ }
     return { ok: true, dryRun: false, plan, backupDir, verify }
   } catch (e) {
     // 回滚：配置级完全回滚（删新建 + 恢复快照）+ staging 清理；尽力而为，绝不静默
@@ -308,7 +331,10 @@ export function importDsh(opts: ImportOptions): ImportResult {
         rmSync(targetSettings, { force: true })
         rolled.push('removed settings.yaml (created by this import)')
       }
-      if (staging) rmSync(join(resolve(opts.home ?? resolveDshHome()), '.dshmig-staging'), { recursive: true, force: true })
+      if (staging) {
+        rmSync(staging, { recursive: true, force: true })
+        try { rmdirSync(join(resolve(opts.home ?? resolveDshHome()), '.dshmig-staging')) } catch { /* 并发导入仍在用：忽略 */ }
+      }
       rolled.push('removed staging')
       // 回滚后本次备份已冗余（settings 已恢复/删除），删除以保持目标机"原生未动"状态（target-freshness 可重试）
       if (backupDirCreated && backupDir) {

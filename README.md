@@ -49,8 +49,8 @@ dev_inject_plugin <本目录>
 ## 完整迁移流程（第一次使用）
 
 1. **源机导出**：设置 → 迁移 → 导出 → ① 预览导出内容 → ② 执行导出
-2. **拿到产物**：`.dshmig` 文件生成在 `~/dsh-migrate-exports/dsh-migrate-<profile>-<时间戳>.dshmig`——一个 zip，内含 manifest（校验清单）、profile 配置、settings.yaml（已脱敏）、`.agent-presets`、`vendor/` link 包；**凭据已排除/脱敏，可放心传输**
-3. **传输**：U 盘 / 网盘 / scp 均可（文件不包含凭据）
+2. **拿到产物**：`.dshmig` 文件生成在 `~/dsh-migrate-exports/dsh-migrate-<profile>-<时间戳>.dshmig`——一个 zip，内含 manifest（校验清单）、profile 配置、settings.yaml（已脱敏）、`.agent-presets`、`vendor/` link 包；**凭据尽力排除/脱敏**（`secretReport` 含 `unscannedFiles` 未扫描清单，传输前请核对）
+3. **传输**：U 盘 / 网盘 / scp 均可（脱敏尽力而为，请以 secretReport 为准）
 4. **目标机导入**：目标机 DSH → 设置 → 迁移 → 导入 → 粘贴 `.dshmig` 路径 → ① 预检（逐项 ✓/✗）→ 确认步骤清单 → ② 执行导入
 5. **等待验证**：自动执行 pnpm install + 验证链（L1 安装 / L2 链接解析 / L3 `dsh --dump-config`），全部通过才收尾
 6. **切换使用**：导入为**新建 profile**（`<name>-migrated`），验证通过后手动切换默认 profile；确认无误后清理 `~/.dsh/.dshmig-backup/`
@@ -79,10 +79,13 @@ dev_inject_plugin <本目录>
 
 ## 安全边界
 
-- **本插件不收集、不传输任何凭据**：`.credentials.yaml`、`.env*` 硬排除；settings.yaml/presets 内疑似凭据字段自动脱敏（`<redacted>`）并记录于 `secretReport`
+- **凭据尽力排除/脱敏，非绝对保证**：`.credentials.yaml`、`.env*` 硬排除；settings/presets/vendor 配置文件内疑似凭据字段自动脱敏（`<redacted>`）并记录于 `secretReport`；**未扫描文件清单（`unscannedFiles`）随报告导出，请核对后再传输**
+- **导入 = 执行归档中的代码**：导入会 `pnpm install`（默认 `--ignore-scripts`）并解析 bundle 插件，之后启动该 profile 会执行其中插件——**仅导入你信任的来源**（UI 确认框有醒目警告）
 - 导出产物只在本机生成；上传/传输由用户自行负责
-- `link:` 目标断言在 `<home>/vendor` 内（防路径逃逸）
-- HTTP API 仅同源（Origin 与 Host 一致）可调用
+- `link:` 目标断言在 `<home>/vendor` 内（防路径逃逸）；manifest 路径字段（files/links/profiles）白名单校验 + 落地断言（防穿越写盘）
+- HTTP API 仅本机回环（Host 白名单）+ CSRF token + Origin 同源 + `Sec-Fetch-Site` 校验；**将 DSH web 暴露到局域网 = 任何人可导入任意归档（RCE 面）**
+- settings.yaml 为符号链接时拒绝覆盖（防穿透写目标）
+- 并发导入各自独立 staging 子目录，互不清理
 
 ## FAQ
 
@@ -93,6 +96,8 @@ dev_inject_plugin <本目录>
 **跨 OS 可以迁移吗？** MVP 限定同 OS；跨 OS 会在预检阶段明确拒绝。
 
 **git: 依赖（skin 类）怎么办？** 不打包，目标机 `pnpm install` 时重新拉取（需网络/凭据），预检会提示。
+
+**导入安全吗？** 导入会执行归档内的代码（pnpm install 安装脚本 + bundle 插件解析，之后启动 profile 还会执行插件），所以**只导入你信任的来源**。默认 `--ignore-scripts` 禁止依赖安装脚本；路径字段白名单 + 落地断言防穿越；HTTP API 仅回环 + token 可调。
 
 **导入失败了会怎样？** 配置级完全回滚（删除新建内容 + 恢复快照），依赖级尽力恢复；`.dshmig-backup/` 保留现场，绝不静默。
 

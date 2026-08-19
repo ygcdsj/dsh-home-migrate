@@ -328,6 +328,11 @@ migrate-<profile>-<yyyyMMdd-HHmmss>.dshmig
 | 7 | 大 vendor 包/多 profile 导致产物膨胀 | 导出/传输慢 | 产物大小写进 dry-run 预览；超阈值（如 500MB）二次确认 |
 | 8 | 同 OS 但盘符/路径大小写差异 | link 重算失败 | 重写后交叉校验 vendor 实体存在性（§7 规则 4） |
 | 9 | 回滚自身失败 | 现场残留 | §10：报告 + 保留现场，不静默 |
+| 10 | 恶意归档路径穿越写盘（manifest 字段由归档作者控制） | 任意目录写入 / 潜在 RCE | parseManifest 白名单（files/links/profiles，拒绝 `..`/绝对路径/盘符/`\`）+ `ensureUnder` 落地断言（profile/vendor/presets/staging 读写均限根内）；测试用例 9-13 |
+| 11 | 导入执行不可信代码（pnpm 安装脚本 + bundle 插件） | 目标机 RCE | `pnpm install --ignore-scripts` 默认（`allowScripts` 显式放开）；UI 确认框"归档即代码"警告；README「仅导入信任来源」 |
+| 12 | HTTP API 被非浏览器/局域网调用方触发 | 未授权导入/导出 | Host 白名单（仅 loopback）+ CSRF token（GET /session）+ Origin 同源 + Sec-Fetch-Site；文档警告暴露局域网 = RCE 面 |
+| 13 | 凭据脱敏漏报（带空格引号值 / Bearer / 块标量） | 凭据明文随包导出 | 值捕获到闭合引号；块标量整体判定；vendor 配置文件纳入扫描；`unscannedFiles` 随报告导出；回归表 test/secret-cases.mjs |
+| 14 | 上传/解压无膨胀限制 | 内存/磁盘 DoS | readBody 流式限长（8MB → 413）；解包条目 ≤10k 且总未压缩 ≤512MB；manifest 条目 ≤16MB |
 
 ---
 

@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { dshHomeDisplay } from '@deepseek-ai/dsh-home-paths'
 import { scanHome, type ExportPlan } from './scan.js'
 import { detectSecrets, redactSecrets, type SecretHit } from './secret.js'
 import { buildManifest, hashContent, hashFile, type Manifest, type ManifestFile, type SecretReport } from './manifest.js'
@@ -27,7 +28,12 @@ export interface ExportResult {
   error?: string
 }
 
+// 扫描范围（SECURITY_REVIEW F4）：settings/presets/profile 全扫（代码文件除外）；
+// vendor 仅扫配置文件扩展名（代码文件跳过——变量名/字符串常量误报率高）。
 const TEXT_KINDS = new Set(['settings', 'preset', 'profile'])
+const CODE_EXT = /\.(mjs|js|cjs|ts|tsx|jsx|mts|cts)$/i
+const CONFIG_EXT = /\.(ya?ml|json|toml|ini|env(\.\w+)?)$/i
+const UNSCANNED_CAP = 100 // unscannedFiles 列表上限（unscannedTotal 记录全量）
 
 function detectDshVersion(): string {
   try {
@@ -42,13 +48,19 @@ function detectDshVersion(): string {
 export function exportDsh(opts: ExportOptions): ExportResult {
   try {
     const plan = scanHome(opts.home)
-    const secretReport: SecretReport = { excludedFiles: [...plan.excluded], redactedFields: [] }
+    const secretReport: SecretReport = { excludedFiles: [...plan.excluded], redactedFields: [], unscannedFiles: [], unscannedTotal: 0 }
     const redacted = new Map<string, string>() // absPath -> 脱敏后内容
+    const unscanned: string[] = []
+    let unscannedTotal = 0
+    const noteUnscanned = (relPath: string): void => {
+      unscannedTotal++
+      if (unscanned.length < UNSCANNED_CAP) unscanned.push(relPath)
+    }
 
     for (const f of plan.files) {
-      if (!TEXT_KINDS.has(f.kind)) continue
-      // 代码文件跳过字段级扫描（变量名/字符串常量误报率高；凭据主要出现在配置类文件中）
-      if (/\.(mjs|js|cjs|ts|tsx|jsx|mts|cts)$/i.test(f.relPath)) continue
+      const isCode = CODE_EXT.test(f.relPath)
+      const scannable = TEXT_KINDS.has(f.kind) || (f.kind === 'vendor' && CONFIG_EXT.test(f.relPath))
+      if (!scannable || isCode) { noteUnscanned(f.relPath); continue }
       try {
         const raw = readFileSync(f.absPath, 'utf8')
         const hits = detectSecrets(raw, f.relPath)
@@ -59,8 +71,10 @@ export function exportDsh(opts: ExportOptions): ExportResult {
             secretReport.redactedFields.push(...done)
           }
         }
-      } catch { /* 非 UTF-8 文本或不可读：跳过扫描 */ }
+      } catch { noteUnscanned(f.relPath) /* 非 UTF-8 文本或不可读 */ }
     }
+    secretReport.unscannedFiles = unscanned
+    secretReport.unscannedTotal = unscannedTotal
 
     if (opts.dryRun) {
       return {
@@ -70,7 +84,7 @@ export function exportDsh(opts: ExportOptions): ExportResult {
         secretReport,
         manifest: buildManifest({
           platform: process.platform, arch: process.arch, dshVersion: 'dry-run',
-          dshHome: plan.home, profiles: plan.profiles,
+          dshHome: dshHomeDisplay(plan.home), profiles: plan.profiles,
           files: [], links: plan.links.map((l) => ({ dep: l.dep, vendorPath: l.vendorRelPath })),
           excluded: plan.excluded, secretReport,
         }),
@@ -94,7 +108,7 @@ export function exportDsh(opts: ExportOptions): ExportResult {
 
     const manifest = buildManifest({
       platform: process.platform, arch: process.arch, dshVersion,
-      dshHome: plan.home, profiles: plan.profiles,
+      dshHome: dshHomeDisplay(plan.home), profiles: plan.profiles,
       files: manifestFiles, links: plan.links.map((l) => ({ dep: l.dep, vendorPath: l.vendorRelPath })),
       excluded: plan.excluded, secretReport,
     })

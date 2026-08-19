@@ -42,10 +42,22 @@ function fmtBytes(n: number): string {
   return n + ' B'
 }
 
+let csrfToken: string | null = null
+
 async function api(path: string, body?: unknown): Promise<Record<string, unknown>> {
+  if (!csrfToken) {
+    try {
+      const s = await fetch('/dsh-migrate/api/session', { method: 'GET' })
+      const d = (await s.json()) as { token?: string }
+      csrfToken = d.token ?? null
+    } catch { /* token 拿不到则不带（服务端会 403，报错可见） */ }
+  }
   const r = await fetch(path, {
     method: 'POST',
-    headers: body ? { 'content-type': 'application/json' } : undefined,
+    headers: {
+      ...(body ? { 'content-type': 'application/json' } : {}),
+      ...(csrfToken ? { 'x-dshmig-token': csrfToken } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   })
   return r.json() as Promise<Record<string, unknown>>
@@ -135,7 +147,7 @@ function createPanel(): HTMLElement {
       })
     })
     setContent(el('div', {},
-      el('p', { style: { color: '#8b949e', fontSize: '12px' } }, L('将当前 DSH 配置打包为 .dshmig 迁移归档（凭据硬排除+脱敏）。', 'Pack current DSH config into a .dshmig migration archive (credentials excluded + redacted).')),
+      el('p', { style: { color: '#8b949e', fontSize: '12px' } }, L('将当前 DSH 配置打包为 .dshmig 迁移归档（凭据尽力排除+脱敏；未扫描文件见报告）。', 'Pack current DSH config into a .dshmig migration archive (credentials best-effort excluded + redacted; unscanned files listed in the report).')),
       step('①', L('选择产物目录', 'Choose output dir'), [outDirRow]),
       step('②', L('预览导出内容', 'Preview export'), [el('button', { class: 'dshmig-btn', 'data-act': 'preview' }, L('预览导出内容', 'Preview export'))]),
     ))
@@ -146,7 +158,9 @@ function createPanel(): HTMLElement {
       void api('/dsh-migrate/api/export-preview').then((data) => {
         if (!data.ok) { setContent(el('div', {}, errorBox(String(data.error ?? 'unknown')))); return }
         const plan = data.plan as { profiles: string[]; files: unknown[]; totalBytes: number; links: unknown[]; excluded: string[]; warnings: string[] }
-        const secrets = data.secretReport as { redactedFields: unknown[] }
+        const secrets = data.secretReport as { redactedFields: unknown[]; unscannedFiles?: string[]; unscannedTotal?: number }
+        const unscannedCount = secrets.unscannedFiles?.length ?? 0
+        const unscannedTotal = secrets.unscannedTotal ?? unscannedCount
         setContent(el('div', {},
           el('h4', {}, L('预览', 'Preview')),
           row(L('profile', 'profile'), plan.profiles.join(', ') || '—'),
@@ -155,6 +169,8 @@ function createPanel(): HTMLElement {
           row(L('link 依赖', 'link deps'), String(plan.links.length)),
           row(L('排除项', 'excluded'), plan.excluded.join(', ') || '—'),
           row(L('脱敏字段', 'redacted'), String(secrets.redactedFields.length)),
+          row(L('未扫描文件', 'unscanned'), unscannedTotal > 0 ? String(unscannedTotal) + (unscannedCount < unscannedTotal ? L('（列表截断）', ' (list truncated)') : '') : '0'),
+          ...(unscannedCount > 0 ? [el('div', { style: { color: '#d29922', fontSize: '12px', padding: '2px 0' } }, L('以下文件未做凭据扫描：', 'Files not scanned for secrets: ') + (secrets.unscannedFiles as string[]).slice(0, 5).join(', ') + (unscannedCount > 5 ? ' …' : ''))] : []),
           ...(plan.warnings.length ? [el('div', { style: { color: '#d29922', padding: '4px 0' } }, '⚠ ' + plan.warnings.join('; '))] : []),
           step('③', L('执行导出', 'Run export'), [el('button', { class: 'dshmig-btn dshmig-btn-primary', 'data-act': 'run-export', style: { margin: '4px 0' } }, L('执行导出', 'Run export'))]),
         ))
@@ -175,7 +191,7 @@ function createPanel(): HTMLElement {
               row(L('link 依赖', 'links'), String(m.links.length)),
               el('h4', { style: { marginTop: '10px' } }, L('下一步：在目标机还原', 'Next: restore on the target machine')),
               el('ol', { style: { paddingLeft: '20px', lineHeight: '1.7', color: '#e6edf3' } },
-                el('li', {}, L('把这个 .dshmig 文件复制到目标机（U 盘 / 网盘 / scp 均可）——凭据已排除或脱敏，可放心传输', 'Copy this .dshmig file to the target machine (USB / cloud / scp) — credentials are excluded or redacted, safe to transfer')),
+                el('li', {}, L('把这个 .dshmig 文件复制到目标机（U 盘 / 网盘 / scp 均可）——凭据已尽力排除或脱敏（请核对上方脱敏/未扫描报告）；归档仅导入你信任的来源', 'Copy this .dshmig file to the target machine (USB / cloud / scp) — credentials are best-effort excluded or redacted (review the redaction/unscanned report above); only import archives from sources you trust')),
                 el('li', {}, L('目标机打开 DSH → 设置 → 迁移 → 导入 选项卡', 'On the target machine: DSH → Settings → Migration → Import tab')),
                 el('li', {}, L('粘贴文件路径 → ① 预检 → 确认步骤 → ② 执行导入', 'Paste the path → ① Preflight → confirm steps → ② Run import')),
               ),
@@ -250,6 +266,9 @@ function createPanel(): HTMLElement {
         }
         const allOk = plan.checks.every((c) => c.ok)
         const fatal = plan.checks.filter((c) => !c.ok)
+        const sr = data.secretReport as { redactedFields?: unknown[]; unscannedFiles?: string[]; unscannedTotal?: number } | undefined
+        const unscannedCount = sr?.unscannedFiles?.length ?? 0
+        const unscannedTotal = sr?.unscannedTotal ?? unscannedCount
         setContent(el('div', {},
           el('h4', {}, L('预检结果', 'Preflight')),
           ...(fatal.length > 0
@@ -258,6 +277,7 @@ function createPanel(): HTMLElement {
           row(L('新 profile', 'new profile'), plan.newProfile),
           ...plan.checks.map((c) => el('div', { style: { color: c.ok ? '#3fb950' : '#f85149', padding: '2px 0' } },
             `${c.ok ? '✓' : '✗'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)),
+          ...(sr && unscannedTotal > 0 ? [row(L('未扫描文件', 'unscanned'), String(unscannedTotal) + (unscannedCount < unscannedTotal ? L('（列表截断）', ' (truncated)') : ''))] : []),
           ...(plan.warnings.length ? [el('div', { style: { color: '#d29922', padding: '4px 0' } }, '⚠ ' + plan.warnings.join('; '))] : []),
           ...(allOk ? [
             el('h4', { style: { marginTop: '10px' } }, L('将执行的步骤', 'Steps')),
@@ -273,7 +293,9 @@ function createPanel(): HTMLElement {
         if (!run) return
         run.addEventListener('click', () => {
           const stepsText = plan.steps.map((s) => '· ' + s).join('\n')
-          if (!window.confirm(L(`将导入到新 profile「${plan.newProfile}」并执行：\n${stepsText}\n\n继续？`, `Import into new profile "${plan.newProfile}":\n${stepsText}\n\nProceed?`))) return
+          if (!window.confirm(L(
+            `⚠ 导入归档 = 执行其中的插件代码与安装脚本（pnpm 默认 --ignore-scripts，但 bundle 插件仍会被解析/加载）。仅导入你信任的来源！\n\n将导入到新 profile「${plan.newProfile}」并执行：\n${stepsText}\n\n继续？`,
+            `⚠ Importing an archive EXECUTES the plugin code and install scripts it contains (pnpm uses --ignore-scripts by default, but bundle plugins are still parsed/loaded). Only import archives from sources you trust!\n\nImport into new profile "${plan.newProfile}":\n${stepsText}\n\nProceed?`))) return
           run.disabled = true
           busy(L('导入中（含 pnpm install，可能较久）…', 'Importing (pnpm install may take a while)'))
           void api('/dsh-migrate/api/import', bodyFor()).then((r2) => {

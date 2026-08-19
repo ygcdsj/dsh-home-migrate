@@ -5,7 +5,7 @@
  */
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import { resolveDshHome, dshHomePath } from '@deepseek-ai/dsh-home-paths'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 
 export type FileKind = 'settings' | 'profile' | 'preset' | 'vendor'
 
@@ -80,7 +80,7 @@ function collectLinks(profileDir: string, home: string, plan: ExportPlan): void 
   }
   const deps = pkg.dependencies
   if (deps === null || typeof deps !== 'object' || Array.isArray(deps)) return
-  const vendorRoot = resolve(dshHomePath('vendor')).toLowerCase()
+  const vendorRoot = resolve(join(home, 'vendor')).toLowerCase()
   for (const [dep, spec] of Object.entries(deps as Record<string, unknown>)) {
     if (typeof spec !== 'string' || !spec.startsWith('link:')) continue
     const target = resolve(spec.slice(5))
@@ -88,7 +88,7 @@ function collectLinks(profileDir: string, home: string, plan: ExportPlan): void 
     if (!targetLower.startsWith(vendorRoot + sep) && targetLower !== vendorRoot) {
       throw new Error(`unsafe link target rejected (outside <home>/vendor): ${dep} -> ${target}`)
     }
-    const vendorRel = relative(resolve(dshHomePath('vendor')), target).split(sep).join('/')
+    const vendorRel = relative(resolve(join(home, 'vendor')), target).split(sep).join('/')
     plan.links.push({ dep, vendorRelPath: 'vendor/' + vendorRel, absPath: target })
   }
 }
@@ -109,7 +109,8 @@ export function scanHome(homeOverride?: string): ExportPlan {
   }
 
   // profiles：目录 + 固定文件集；profiles/node_modules（DSH CLI 本体）排除
-  const profilesRoot = dshHomePath('profiles')
+  // home override（沙箱测试）时一律基于 override home 拼接（与 import 侧 targetHome 语义一致）
+  const profilesRoot = join(home, 'profiles')
   if (existsSync(profilesRoot)) {
     for (const entry of readdirSync(profilesRoot, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name === 'node_modules' || isExcludedName(entry.name)) {
@@ -138,7 +139,7 @@ export function scanHome(homeOverride?: string): ExportPlan {
   }
 
   // .agent-presets
-  const presetsRoot = dshHomePath('.agent-presets')
+  const presetsRoot = join(home, '.agent-presets')
   if (existsSync(presetsRoot)) {
     walkDir(presetsRoot, 'presets/', 'preset', plan.files, plan.warnings)
   }

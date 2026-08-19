@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.0.6 (2026-08-20)
+
+安全审查（SECURITY_REVIEW.md F1–F10）修复：路径穿越、HTTP API 认证、导入代码执行边界、脱敏漏报、膨胀限制、信息泄漏与并发清理。
+
+### 🔴 修复（Critical）
+
+- **F1 导入链 manifest 路径穿越 → 任意目录写入**（实测复现）：`manifest.profiles[0]` / `links[].vendorPath` / `files[].path` 此前无校验直接进 `path.join()`，`../../evil` 可把 profile/vendor 写到 `<home>` 外、sha256 校验可被 `files: []` 整体跳过。修复：`parseManifest` 白名单校验三字段（拒绝 `..`/绝对路径/盘符/`\`/空白/空段）+ `ensureUnder` 落地断言（profile/vendor/presets/staging 读写均限根内，纵深防御）。新增故障注入用例 9–13（`test/fault-injection.mjs`，26 项全过）；修复前漏洞复现脚本见核查记录。
+
+### 🟠 修复（High）
+
+- **F2 HTTP API 无认证**：Host 白名单（仅 `127.0.0.1`/`localhost`/`[::1]`）+ CSRF token（先 `GET /dsh-migrate/api/session` 领取，写请求头 `x-dshmig-token`）+ `Sec-Fetch-Site: cross-site` 拒绝；新增 `test/http-reject.mjs`（10 项全过）。
+- **F3 导入 = 执行不可信代码**：`pnpm install` 默认 `--ignore-scripts`（`allowScripts: true` 显式放开）；UI 导入确认框加「归档即代码，仅导入信任来源」警告；README/UI「可放心传输」措辞改为「尽力脱敏，请核对 secretReport（含 unscannedFiles）」。
+
+### 🟡 修复（Medium）
+
+- **F4 凭据脱敏漏报**（实测复现）：带空格引号值（`password: "correct horse battery staple"`）、`Bearer ` 前缀 token、YAML 块标量（PEM 私钥）此前零命中明文导出。修复：值捕获到闭合引号为止（允许空格/转义）；块标量按字段名 + base64/hex 内容启发式整体脱敏；vendor 配置文件（yaml/json/toml/ini/env）纳入扫描；`secretReport` 增加 `unscannedFiles`/`unscannedTotal` 随包导出，UI 展示。新增 `test/secret-cases.mjs` 回归表（21 项全过）。
+- **F5 上传/解压无膨胀限制**：`readBody` 流式限长（8MB，超限 413 并断开）；解包预检条目数 ≤10k、总未压缩 ≤512MB、manifest 条目 ≤16MB；磁盘归档文件本体限 512MB。
+
+### ⚪ 修复（Low）
+
+- **F6** manifest `source.dshHome` 不再写绝对路径，改用官方 `dshHomeDisplay()`（`~/.dsh` / `$DSH_HOME`）。
+- **F7** `settings.yaml` 为符号链接时预检拒绝（防备份/覆盖穿透写目标）。
+- **F8** `dsh_migrate_export` dryRun 语义对齐描述：省略即预览（`args.dryRun !== false`）。
+- **F10** staging 清理只删自己的 `staging/<stamp>` 子目录，不再清整根（并发导入互不干扰）。
+
+### 测试
+
+- `test/fault-injection.mjs` 19 → 26 项（新增恶意 manifest 拒绝 5 项）；`test/secret-cases.mjs`（21 项）；`test/http-reject.mjs`（10 项）；`npm test` 全量通过。
+
 ## 0.0.5 (2026-08-19)
 
 ### 修复

@@ -1,6 +1,6 @@
 {
   "name": "dsh-migrate",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "DSH 閰嶇疆杩佺Щ宸ュ叿锛氬鍑?鎵撳寘/瀵煎叆 + 鏍￠獙鍥炴粴锛堝悓 OS锛屾柊寤?profile锛夈€侲xport/package/import DSH config with verification and rollback.",
   "type": "module",
   "main": "./lib/index.js",
@@ -38,7 +38,7 @@
     "build:bash": "bash scripts/build.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:client": "tsdown",
-    "test": "node test/smoke-import.mjs && node test/fault-injection.mjs && node test/freshness-check.mjs",
+    "test": "node test/smoke-import.mjs && node test/fault-injection.mjs && node test/freshness-check.mjs && node test/secret-cases.mjs && node test/export-redaction.mjs && node test/http-reject.mjs",
     "test:install": "node test/smoke-install.mjs"
   },
   "exports": {

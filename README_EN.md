@@ -49,8 +49,8 @@ dev_inject_plugin <this directory>
 ## Full migration walkthrough (first-time users)
 
 1. **Export on the source machine**: Settings → Migration → Export → ① Preview export → ② Run export
-2. **Get the artifact**: a `.dshmig` file lands in `~/dsh-migrate-exports/dsh-migrate-<profile>-<timestamp>.dshmig` — a zip containing the manifest (checksums), profile configs, settings.yaml (redacted), `.agent-presets`, and `vendor/` link packages; **credentials are excluded/redacted, safe to transfer**
-3. **Transfer it**: USB / cloud / scp — the file carries no credentials
+2. **Get the artifact**: a `.dshmig` file lands in `~/dsh-migrate-exports/dsh-migrate-<profile>-<timestamp>.dshmig` — a zip containing the manifest (checksums), profile configs, settings.yaml (redacted), `.agent-presets`, and `vendor/` link packages; **credentials are best-effort excluded/redacted** (`secretReport` includes an `unscannedFiles` list — review it before transferring)
+3. **Transfer it**: USB / cloud / scp — redaction is best-effort; rely on `secretReport`
 4. **Import on the target**: DSH → Settings → Migration → Import → paste the `.dshmig` path → ① Preflight (per-item ✓/✗) → confirm the step list → ② Run import
 5. **Wait for verification**: `pnpm install` + verification chain run automatically (L1 install / L2 link resolution / L3 `dsh --dump-config`); the import only finishes when all pass
 6. **Switch to it**: the import creates a **NEW profile** (`<name>-migrated`); switch the default profile manually after verification, then clean up `~/.dsh/.dshmig-backup/` once confirmed
@@ -79,10 +79,12 @@ dev_inject_plugin <this directory>
 
 ## Security boundary
 
-- **This plugin never collects or transmits credentials**: `.credentials.yaml` and `.env*` are hard-excluded; suspected credential fields in settings.yaml/presets are redacted (`<redacted>`) and recorded in `secretReport`
+- **Credentials are best-effort excluded/redacted, not guaranteed**: `.credentials.yaml` and `.env*` are hard-excluded; suspected credential fields in settings/presets/vendor config files are redacted (`<redacted>`) and recorded in `secretReport`; an **unscanned-files list (`unscannedFiles`)** ships with the report — review it before transferring
+- **Importing executes code from the archive**: import runs `pnpm install` (default `--ignore-scripts`) and parses bundle plugins, and starting the profile later executes them — **only import archives from sources you trust** (the UI confirm dialog warns about this)
 - Artifacts are generated locally only; transferring them is your responsibility
-- `link:` targets are asserted inside `<home>/vendor` (path-escape protection)
-- HTTP API is same-origin only (Origin must match Host)
+- `link:` targets are asserted inside `<home>/vendor`; manifest path fields (files/links/profiles) are allow-listed + landing-path asserted (anti path-traversal writes)
+- HTTP API is loopback-only (Host allow-list) + CSRF token + Origin same-origin + `Sec-Fetch-Site` checks; **exposing DSH web to a LAN means anyone can import arbitrary archives (an RCE surface)**
+- A symlinked `settings.yaml` is refused for overwrite (no write-through); concurrent imports use separate staging subdirs and never clean each other's
 
 ## FAQ
 
@@ -93,6 +95,8 @@ dev_inject_plugin <this directory>
 **Cross-OS migration?** MVP is same-OS only; cross-OS is rejected at preflight.
 
 **What about git: dependencies (skins)?** Not packaged; re-fetched by `pnpm install` on the target (network/credentials required; preflight warns).
+
+**Is import safe?** Import executes code inside the archive (pnpm install scripts + bundle plugin parsing; starting the profile later runs the plugins), so **only import archives from sources you trust**. `--ignore-scripts` is on by default; path fields are allow-listed with landing assertions; the HTTP API is loopback-only + token-gated.
 
 **What if import fails?** Config-level rollback is complete (remove created paths + restore snapshot); dependency-level is best-effort; `.dshmig-backup/` preserves the scene — never silent.
 

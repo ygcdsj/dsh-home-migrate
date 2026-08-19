@@ -1,5 +1,6 @@
 // M4 故障注入套件（docs §11.3）：每个用例构造坏输入，断言导入走预期路径（报错/拦截/回滚），
 // 并断言回滚后 home 无残留。用例 6（pnpm 失败）在沙箱内走 spawn EPERM 路径，授权下走真实 404 路径——两者都验证回滚。
+// 2026-08-19 增（SECURITY_REVIEW F1）：用例 9-13 恶意 manifest 路径（.. / 绝对路径 / 盘符）解析即拒绝、零写入。
 import { createArchive } from '../lib/archive.js'
 import { importDsh } from '../lib/import.js'
 import { exportDsh } from '../lib/export.js'
@@ -138,6 +139,55 @@ function makeFakeArchive(opts = {}) {
   const leftovers = top.filter((n) => n !== 'profiles' && n !== 'vendor')
   check('8 home 顶层无残留', leftovers.length === 0, leftovers.join(','))
   check('8 无 staging', !existsSync(home + '/.dshmig-staging'))
+}
+
+// ── SECURITY_REVIEW F1：恶意 manifest 路径解析即拒绝、零写入 ──
+function maliciousArchive(overrides) {
+  const manifest = buildManifest({
+    platform: process.platform, arch: process.arch, dshVersion: '0.1.0-rc.7', dshHome: 'C:/Users/<user>/.dsh',
+    profiles: ['web'], files: [], links: [], excluded: [], secretReport: { excludedFiles: [], redactedFields: [], unscannedFiles: [], unscannedTotal: 0 },
+    ...overrides,
+  })
+  const archive = sandbox + '/malicious.dshmig'
+  createArchive([{ path: 'manifest.json', content: JSON.stringify(manifest, null, 2) }], archive)
+  return archive
+}
+
+// 9. profiles[0] 路径穿越 → 拒绝
+{
+  const a = maliciousArchive({ profiles: ['../../evil'] })
+  const r = importDsh({ archive: a, home })
+  check('9 profiles[0]="../../evil" → 拒绝', !r.ok && /unsafe profiles/.test(r.error ?? ''), r.error ?? '')
+  check('9 零写入（无 evil-migrated）', !existsSync(home + '/evil-migrated') && !existsSync(home + '/profiles/evil-migrated'))
+}
+
+// 10. links[].vendorPath 穿越 → 拒绝
+{
+  const a = maliciousArchive({ links: [{ dep: 'x', vendorPath: 'vendor/../evil' }] })
+  const r = importDsh({ archive: a, home })
+  check('10 vendorPath="vendor/../evil" → 拒绝', !r.ok && /unsafe links/.test(r.error ?? ''), r.error ?? '')
+  check('10 零写入（无 home/evil）', !existsSync(home + '/evil'))
+}
+
+// 11. files[].path 反斜杠穿越 → 拒绝
+{
+  const a = maliciousArchive({ files: [{ path: '..\\..\\x', sha256: '0'.repeat(64), size: 0 }] })
+  const r = importDsh({ archive: a, home })
+  check('11 files[].path="..\\\\..\\\\x" → 拒绝', !r.ok && /unsafe files/.test(r.error ?? ''), r.error ?? '')
+}
+
+// 12. files[].path 绝对路径/盘符 → 拒绝
+{
+  const a = maliciousArchive({ files: [{ path: 'C:\\Windows\\win.ini', sha256: '0'.repeat(64), size: 0 }] })
+  const r = importDsh({ archive: a, home })
+  check('12 files[].path="C:\\\\Windows\\\\win.ini" → 拒绝', !r.ok && /unsafe files/.test(r.error ?? ''), r.error ?? '')
+}
+
+// 13. 合法路径不受影响（files:[] + 正常 profile 名仍可过预检到 freshness 阶段）
+{
+  const a = maliciousArchive({ profiles: ['web'] })
+  const r = importDsh({ archive: a, home, dryRun: true })
+  check('13 合法 manifest 不被误伤（dryRun 可生成 plan）', r.ok === true && r.plan !== undefined, r.error ?? '')
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)
