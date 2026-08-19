@@ -80,6 +80,7 @@ dev_inject_plugin <this directory>
 ## Security boundary
 
 - **Credentials are best-effort excluded/redacted, not guaranteed**: `.credentials.yaml` and `.env*` are hard-excluded; suspected credential fields in settings/presets/vendor config files are redacted (`<redacted>`) and recorded in `secretReport`; an **unscanned-files list (`unscannedFiles`)** ships with the report — review it before transferring
+- **Credentials inside vendor config files are redacted in place**: the inevitable cost of not migrating credentials — if a migrated vendor package depends on a redacted value (e.g. an API token), reconfigure it on the target; the README/export report calls this out
 - **Importing executes code from the archive**: import runs `pnpm install` (default `--ignore-scripts`) and parses bundle plugins, and starting the profile later executes them — **only import archives from sources you trust** (the UI confirm dialog warns about this)
 - Artifacts are generated locally only; transferring them is your responsibility
 - `link:` targets are asserted inside `<home>/vendor`; manifest path fields (files/links/profiles) are allow-listed + landing-path asserted (anti path-traversal writes)

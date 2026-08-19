@@ -74,10 +74,14 @@ export function parseManifest(json: string): Manifest {
   if (!Array.isArray(m.files) || !Array.isArray(m.links) || !m.source || !Array.isArray(m.profiles)) {
     throw new Error('malformed manifest: missing files/links/source/profiles')
   }
-  // 路径安全（SECURITY_REVIEW F1）：manifest 字段全由归档作者控制，解析即校验，
-  // 拒绝 ..、绝对路径、盘符、空段、\、空白（zip 条目层 canonical 剥 ..，此处管 manifest 层）
+  // 路径安全（SECURITY_REVIEW F1 + R-nit）：manifest 字段全由归档作者控制，解析即校验，
+  // 拒绝 ..、绝对路径、盘符、空段、\、空白（zip 条目层 canonical 剥 ..，此处管 manifest 层）。
+  // links[].dep 进入 node_modules/<dep> 路径，同样过白名单。
   for (const f of m.files) assertSafeRel(f.path, 'files[].path')
-  for (const l of m.links) assertSafeRel(l.vendorPath.replace(/^vendor\//, ''), 'links[].vendorPath')
+  for (const l of m.links) {
+    assertSafeRel(l.vendorPath.replace(/^vendor\//, ''), 'links[].vendorPath')
+    assertSafeRel(l.dep, 'links[].dep')
+  }
   for (const p of m.profiles) assertSafeRel(p, 'profiles[]')
   return m
 }

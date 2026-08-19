@@ -29,6 +29,15 @@
 
 - `test/fault-injection.mjs` 19 → 26 项（新增恶意 manifest 拒绝 5 项）；`test/secret-cases.mjs`（21 项）；`test/http-reject.mjs`（10 项）；`npm test` 全量通过。
 
+### 跟进修复（R1–R3，同版本）
+
+- **R1（F5 引入的回归，Medium）** `readBody` promise 无 `.catch`：客户端发半请求后断开（`for-await` 抛 `aborted`）→ unhandled rejection → Node ≥15 崩溃整个 DSH web 进程（任意本机/局域网进程一个残缺请求即 DoS）。已补 `.catch` 兜底（尽力 500，socket 已断则忽略）；`test/http-reject.mjs` 新增"半请求断开"用例（无 unhandled rejection + 500）。
+- **R2（F4 引入的过度脱敏，Medium-Low）** 块标量内容启发式不豁免 `KNOWN_SAFE_FIELDS`：`description:`/`command:` 等合法块恰含 base64/hex 单行时整块被替换，迁移后预设/配置损坏。已豁免：内容启发式仅对非豁免字段生效，字段名是 secret 类（password/privateKey 等）仍整块脱敏。
+- **R3（F4 家族残留，Low）** 裸值捕获遇 `,;}{` 即断：`password: abc,defghi`（YAML 合法裸标量）零命中明文导出。已改裸值捕获到行尾或 ` #` 注释（顺带修 `#` 前空格丢失：`token: <redacted> # comment`）。
+- **Nit** `manifest.links[].dep` 加入路径白名单（进入 `node_modules/<dep>` 路径，拒绝穿越）；README 补充"vendor 配置原地脱敏 → 迁移后需重配"说明。
+
+- 测试增量：`test/secret-cases.mjs` 21 → 28（R2/R3 用例）；`test/fault-injection.mjs` 26 → 27（dep 白名单）；`test/http-reject.mjs` 10 → 12（R1 用例）。
+
 ## 0.0.5 (2026-08-19)
 
 ### 修复

@@ -51,6 +51,36 @@ function run(text) {
   const r = run(pem)
   check('非 secret 字段块标量 + base64 内容 → 命中（内容启发式）', r.hits.length === 1, `hits=${r.hits.length}`)
 }
+// ── R2：KNOWN_SAFE 块标量内容启发式豁免（不过度脱敏）────────────
+{
+  const r = run('description: |\n  dXNlcm5hbWU6cGFzc3dvcmQ=\n  MIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n')
+  check('R2 description 块 + base64 内容 → 不命中不脱敏', r.hits.length === 0 && r.text.includes('dXNlcm5hbWU6cGFzc3dvcmQ='), JSON.stringify(r.text))
+}
+{
+  const r = run('command: |\n  abcdef1234567890abcdef12\n')
+  check('R2 command 块 + hex 内容 → 不命中不脱敏', r.hits.length === 0 && r.text.includes('abcdef1234567890abcdef12'), JSON.stringify(r.text))
+}
+{
+  const r = run('script: |\n  echo hello\n')
+  check('R2 script 块 + 普通文本 → 不命中', r.hits.length === 0)
+}
+// ── R3：裸值允许逗号/分号/大括号，到行尾或注释 ─────────────────
+{
+  const r = run('password: abc,defghi\n')
+  check('R3 裸值含逗号 → 命中', r.hits.length === 1, `hits=${r.hits.length}`)
+}
+{
+  const r = run('token: abc;def;ghi\n')
+  check('R3 裸值含分号 → 命中', r.hits.length === 1)
+}
+{
+  const r = run('password: abc,defghi # note\n')
+  check('R3 裸值含逗号 + 行内注释 → 命中且保留注释', r.hits.length === 1 && r.text.includes('password: <redacted> # note'), JSON.stringify(r.text))
+}
+{
+  const r = run('token: abcdef123456 # comment\n')
+  check('R3 裸值行内注释 → 脱敏保留 # 前空格', r.text.includes('token: <redacted> # comment'), JSON.stringify(r.text))
+}
 // ── 原有正确行为不回归 ────────────────────────────────────────
 {
   const r = run('apiKey: "sk-abc" # comment\n')

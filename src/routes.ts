@@ -139,6 +139,10 @@ export function mountMigrateRoutes(ctx: Context): () => void {
       void readBody(req).then(({ body, error }) => {
         if (error) { sendJson(res, error.status, { error: error.message }); return }
         try { handler(req, res, body) } catch (e) { sendJson(res, 500, { error: String(e) }) }
+      }).catch((e) => {
+        // R1：客户端半请求/提前断开（for-await 抛 aborted/ECONNRESET）→ promise 拒绝。
+        // 必须兜底：unhandled rejection 会让 Node ≥15 崩溃整个 DSH web 进程。
+        try { sendJson(res, 500, { error: String(e) }) } catch { /* socket 已断，忽略 */ }
       })
     }
 

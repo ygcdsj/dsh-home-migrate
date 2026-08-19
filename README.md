@@ -80,6 +80,7 @@ dev_inject_plugin <本目录>
 ## 安全边界
 
 - **凭据尽力排除/脱敏，非绝对保证**：`.credentials.yaml`、`.env*` 硬排除；settings/presets/vendor 配置文件内疑似凭据字段自动脱敏（`<redacted>`）并记录于 `secretReport`；**未扫描文件清单（`unscannedFiles`）随报告导出，请核对后再传输**
+- **vendor 包配置文件内的凭据会原地脱敏**：迁移不搬运凭据的必然代价——迁移后的 vendor 包若依赖被脱敏的值（如 API token），需要在目标机重新配置；README/导出报告会提示
 - **导入 = 执行归档中的代码**：导入会 `pnpm install`（默认 `--ignore-scripts`）并解析 bundle 插件，之后启动该 profile 会执行其中插件——**仅导入你信任的来源**（UI 确认框有醒目警告）
 - 导出产物只在本机生成；上传/传输由用户自行负责
 - `link:` 目标断言在 `<home>/vendor` 内（防路径逃逸）；manifest 路径字段（files/links/profiles）白名单校验 + 落地断言（防穿越写盘）

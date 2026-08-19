@@ -9,12 +9,14 @@
  * 2. 无字段名信号时用值形态启发式（base64/hex/长混合串）；
  * 3. 豁免：*Env 字段、值本身是环境变量名引用、占位符、布尔/空值、版本号形态。
  *
- * 值捕获（2026-08-19 修复）：
+ * 值捕获（2026-08-19 修复 F4/R2/R3）：
  * - 引号值捕获到闭合引号为止（允许空格/转义）——`password: "correct horse battery staple"`、
  *   `auth: "Bearer eyJ…"`、`password: "sk-xxx abcdef"` 不再漏报；
- * - 块标量（`field: |` / `field: >`）：字段名是 secret 类或内容行命中 base64/hex/长混合串
- *   启发式时整块脱敏（PEM 私钥典型形态）；
- * - 裸值（无引号）到行尾 / ` #` 注释为止。
+ * - 裸值到行尾或 ` #` 注释为止（允许逗号/分号/大括号）——`password: abc,defghi` 不再漏报，
+ *   `apiKey: sk-abc # comment` 脱敏后保留 # 前空格；
+ * - 块标量（`field: |` / `field: >`）：字段名是 secret 类 → 整块脱敏（PEM 私钥典型形态）；
+ *   字段名非 secret 类时，仅当字段名不在 KNOWN_SAFE 豁免表且内容行命中 base64/hex/长混合串
+ *   启发式才脱敏（`description:`/`command:` 等合法内容块不误伤）。
  */
 
 export interface SecretHit {
@@ -75,9 +77,10 @@ function isSecretField(field: string): boolean {
  * 值支持三种形态：
  *  - 双引号串（可含空格/转义）："(?:[^"\\]|\\.)*"
  *  - 单引号串（可含空格）：'(?:[^'\\]|\\.)*'
- *  - 裸值（无引号）：首个字符非引号/#/空白/,;}{，随后到 ` #` 注释或行尾
+ *  - 裸值（无引号）：首个字符非引号/#/空白，随后到行尾或 ` #` 注释为止（R3：允许 ,;}{ 与空格，
+ *    非贪婪 + lookahead 保证 # 前空格不被吞，脱敏后保留 " # comment"）
  */
-const FIELD_PATTERN = /("?'?)([A-Za-z0-9_.-]+)("?'?)(\s*[:=]\s*)((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^"'#\s,;}{][^#,;}{]*))/gi
+const FIELD_PATTERN = /("?'?)([A-Za-z0-9_.-]+)("?'?)(\s*[:=]\s*)((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^#\s][^#]*?(?=\s*#|$)))/gi
 
 // 块标量起始：field: | / field: >（可带折叠/缩进指示符与行注释）
 const BLOCK_START = /^([A-Za-z0-9_.-]+):\s*[|>][+-]?\d*\s*(?:#.*)?$/
@@ -109,7 +112,7 @@ export function detectSecrets(text: string, file: string): SecretHit[] {
         const t = l.trim()
         return t !== '' && (B64.test(t) || HEX.test(t) || MIXED.test(t))
       })
-      if (fieldHit || contentHit) {
+      if (fieldHit || (contentHit && !KNOWN_SAFE_FIELDS.test(field))) {
         hits.push({ file, field, line: i + 1, mode: 'block', blockEnd: j })
         i = j - 1
         continue

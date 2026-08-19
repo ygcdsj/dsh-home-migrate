@@ -122,6 +122,27 @@ const VALID_HOST = '127.0.0.1:3080'
     const r10 = await call('/dsh-migrate/api/session', makeReq({ method: 'GET', headers: { host: 'evil.example.com' } }))
     check('10 GET /session 非回环 Host → 403', r10.status === 403, `status=${r10.status}`)
   }
+  // 11. R1：半请求断开（for-await 中途抛 aborted）→ 不产生 unhandled rejection，尽力 500
+  {
+    let unhandled = 0
+    const onUnhandled = (reason) => { unhandled++; console.log('  ⚠ unhandledRejection:', String(reason)) }
+    process.on('unhandledRejection', onUnhandled)
+    const abortedReq = {
+      method: 'POST',
+      headers: { host: VALID_HOST, 'x-dshmig-token': token },
+      destroy() {},
+      [Symbol.asyncIterator]: async function* () {
+        yield Buffer.from('{"archive":')
+        throw new Error('aborted')
+      },
+    }
+    const res = makeRes()
+    handlers.get('/dsh-migrate/api/import-dryrun')(abortedReq, res)
+    await new Promise((r2) => setTimeout(r2, 50))
+    process.off('unhandledRejection', onUnhandled)
+    check('11 半请求断开 → 无 unhandled rejection（进程不崩）', unhandled === 0, `unhandled=${unhandled}`)
+    check('11 半请求断开 → 尽力 500', res._r.status === 500, `status=${res._r.status}`)
+  }
 }
 
 disposer()

@@ -190,5 +190,12 @@ function maliciousArchive(overrides) {
   check('13 合法 manifest 不被误伤（dryRun 可生成 plan）', r.ok === true && r.plan !== undefined, r.error ?? '')
 }
 
+// 14. links[].dep 白名单（进入 node_modules/<dep> 路径，拒绝穿越）
+{
+  const a = maliciousArchive({ links: [{ dep: '../../evil', vendorPath: 'vendor/x' }] })
+  const r = importDsh({ archive: a, home })
+  check('14 links[].dep="../../evil" → 拒绝', !r.ok && /unsafe links/.test(r.error ?? ''), r.error ?? '')
+}
+
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail === 0 ? 0 : 1)
