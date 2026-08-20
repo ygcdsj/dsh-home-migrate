@@ -3,7 +3,7 @@
 ## 0.0.9 (2026-08-20)
 
 - **自携带（体验修复）**：导出时自动把 dsh-migrate 自身附加进归档内 profile（`dependencies` 加 `dsh-migrate@^<版本>` + `dsh.profile.bundles` 追加），目标机导入后即自带迁移工具，无需手动安装——解决"迁移不带自己"（super-injector 运行时注入的工具不在 profile 依赖里，旧版不随迁移走）。幂等：profile 已显式依赖时不重复附加；dry-run 预览与导出报告会提示；源机文件只读不改。新增 `test/carry-self.mjs` 端到端回归。
-- **修复 pnpm 全新安装 404（上游生态问题规避）**：依赖区间 `>=0.0.1-rc <2` 在 pnpm v11 下会解析到**最旧**预发布版（如 `@deepseek-ai/dsh-tools@0.0.1-rc.1`），其旧 peer 图（`@deepseek-ai/dsh-session@0.0.1-rc.1`）声明了从未发布的 peer `@deepseek-ai/dsh-type-meta` → 全新 `pnpm add dsh-migrate`（含自携带后的目标机安装）404。已将 `@deepseek-ai/dsh-tools` / `@deepseek-ai/dsh-home-paths` 收紧为 `^0.1.0-rc.6`（caret 取最高，走 0.1.0-rc.x 新图，实测可装）。
+- **修复 pnpm 全新安装 404（上游生态问题规避）**：依赖区间 `>=0.0.1-rc <2` 在 pnpm v11 下会解析到**最旧**预发布版（如 `@deepseek-ai/dsh-tools@0.0.1-rc.1`），其旧 peer 图（`@deepseek-ai/dsh-session@0.0.1-rc.1`）声明了从未发布的 peer `@deepseek-ai/dsh-type-meta` → 全新 `pnpm add dsh-migrate`（含自携带后的目标机安装）404。已将 `@deepseek-ai/dsh-tools` / `@deepseek-ai/dsh-home-paths` 收紧为 `>=0.1.0-rc.8 <2`（pnpm 对 `> <` 区间取最低满足版 → 精确解析到已验证可装的 0.1.0-rc.8 新图，实测通过）。
 - 文档：FAQ 补充「重命名 profile 目录后 `dsh plugin` 报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE`」——pnpm 把虚拟商店绝对路径写进 `node_modules/.modules.yaml`，目录改名/复制后失配即报错（pnpm 已知行为，运行时加载不受影响）；修复 = 删除该目录 `node_modules` 后重跑 `dsh plugin ... add`（按 `pnpm-lock.yaml` 重建）。「启动迁移后的 profile」引导处同步加了 ⚠ 提示。
 - 文档：FAQ「迁移包里为什么没有 dsh-migrate 自己」更新为「迁移包会带 dsh-migrate 自己吗」——0.0.9 起自动携带；历史版本（≤0.0.8）不带的成因与手动安装命令仍记录在案。
 
