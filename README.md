@@ -106,6 +106,8 @@ dev_inject_plugin <本目录>
 
 **跨 OS 可以迁移吗？** MVP 限定同 OS；跨 OS 会在预检阶段明确拒绝。
 
+**目标机已经用过（装过插件/皮肤）还能导入吗？** 可以。导入只新建 profile（`<name>-migrated`），不覆盖你现有的任何 profile；settings.yaml 会先备份再覆盖（导入前可取消勾选）；vendor 同名包跳过或校验一致、冲突只报告不覆盖。预检的 `target-used` 项会以警告（⚠）提示目标机状态（已有 vendor 包 / 非默认 profile / 迁移历史），**不阻断导入**；需要"目标机必须原生未动"的严格模式时，host 工具可传 `requireFresh: true`。
+
 **git: 依赖（skin 类）怎么办？** 不打包，目标机 `pnpm install` 时重新拉取（需网络/凭据），预检会提示。
 
 **导入安全吗？** 导入会执行归档内的代码（pnpm install 安装脚本 + bundle 插件解析，之后启动 profile 还会执行插件），所以**只导入你信任的来源**。默认 `--ignore-scripts` 禁止依赖安装脚本；路径字段白名单 + 落地断言防穿越；HTTP API 仅回环 + token 可调。

@@ -207,7 +207,7 @@ migrate-<profile>-<yyyyMMdd-HHmmss>.dshmig
 **预检（全部通过才继续）**：
 1. 平台匹配：manifest.source.platform/arch 与目标机一致（MVP 同 OS 决策）
 2. dsh 版本兼容：manifest 记录 dshVersion，导入端 allowlist（`>= 最低支持版本`，具体值在 M3 实测后固化）
-3. **target-freshness（2026-08-19 新增硬门槛）**：目标 DSH 必须是"原生未动"状态才允许导入——vendor/ 无注入包 && profiles 只有 web（或全新空 home）&& 无 `.dshmig-backup/` 迁移历史。任一不满足 → 预检拒绝，防止破坏已有自定义配置。回滚时会清理本次创建的 backup 目录（保持可重试），成功导入后目标机自然变为"非原生"（下次导入被拒）
+3. **target-used（软门禁，2026-08-19 硬门槛改软）**：预检报告目标机已使用程度——vendor/ 有无注入包、是否只有 web profile、有无 `.dshmig-backup/` 迁移历史。任一存在 → `target-used` 为 **warn（不阻断导入，UI 黄色 ⚠ 逐项提示）**；host 工具传 `requireFresh: true` 可提升为 **error（严格模式，恢复"必须原生未动"行为）**。软化的依据：导入本身只新建 profile（不覆盖现有配置）、settings.yaml 备份后覆盖（可取消勾选）、vendor 冲突只报告，安全兜底已由这些机制保证，硬门禁拦下的"已使用目标机"场景都能安全处理。硬阻断仅保留：settings.yaml 符号链接、平台、sha256、路径白名单等不可恢复/危险项。回滚时会清理本次创建的 backup 目录（保持可重试）
 4. `DSH_HOME` 存在且可写；目标 profile 名 `web-migrated` 冲突时自动递增（`web-migrated-2`）
 5. 磁盘空间 ≥ 归档大小 × 3（产物 + 解包 + node_modules 余量）
 

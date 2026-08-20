@@ -42,19 +42,20 @@ export function apply(ctx: Context): void {
 
     ctx.tools.register(defineTool({
       name: 'dsh_migrate_import',
-      description: '导入 DSH 配置迁移归档（.dshmig）：预检（同 OS/版本/freshness/settings 非 symlink）→ 备份目标机 → 新建 profile（<name>-migrated，重名递增）→ link: 重写 → vendor/presets 还原 → pnpm install（默认 --ignore-scripts，防不可信归档依赖脚本）→ 验证链（链接解析 + dsh --dump-config）。失败自动回滚（配置级完全恢复）。dryRun=true 只预检不写入。',
+      description: '导入 DSH 配置迁移归档（.dshmig）：预检（同 OS/版本/目标机状态/settings 非 symlink）→ 备份目标机 → 新建 profile（<name>-migrated，重名递增）→ link: 重写 → vendor/presets 还原 → pnpm install（默认 --ignore-scripts，防不可信归档依赖脚本）→ 验证链（链接解析 + dsh --dump-config）。失败自动回滚（配置级完全恢复）。dryRun=true 只预检不写入。',
       parameters: {
         archive: { type: 'string', required: true, description: '.dshmig 归档路径' },
         dryRun: { type: 'boolean', description: 'true=仅预检与计划（不写入）' },
         includeSettings: { type: 'boolean', description: '是否覆盖 settings.yaml（默认 true，先备份）' },
         skipInstall: { type: 'boolean', description: '跳过 pnpm install 与依赖级验证（测试用）' },
         allowScripts: { type: 'boolean', description: 'true=允许依赖安装脚本（默认 false：pnpm install --ignore-scripts）' },
+        requireFresh: { type: 'boolean', description: 'true=严格模式：目标机必须为原生未动状态，否则拒绝（默认 false：已使用目标机警告放行）' },
       },
       output: {
         schema: { type: 'string' },
         render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }],
       },
-      async execute(args: { archive?: string; dryRun?: boolean; includeSettings?: boolean; skipInstall?: boolean; allowScripts?: boolean }) {
+      async execute(args: { archive?: string; dryRun?: boolean; includeSettings?: boolean; skipInstall?: boolean; allowScripts?: boolean; requireFresh?: boolean }) {
         try {
           if (!args?.archive) return JSON.stringify({ ok: false, dryRun: true, error: 'archive 参数必填' }, null, 2)
           return JSON.stringify(importDsh({
@@ -63,6 +64,7 @@ export function apply(ctx: Context): void {
             includeSettings: args.includeSettings !== false,
             skipInstall: args.skipInstall === true,
             allowScripts: args.allowScripts === true,
+            requireFresh: args.requireFresh === true,
           }), null, 2)
         } catch (e) {
           return JSON.stringify({ ok: false, dryRun: args?.dryRun === true, error: String(e) }, null, 2)

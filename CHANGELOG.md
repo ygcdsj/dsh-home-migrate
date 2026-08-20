@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.8 (2026-08-19)
+
+- **target-freshness 硬门禁 → `target-used` 软门禁**：目标机已使用（vendor/ 有包、已有非默认 profile、存在 `.dshmig-backup/` 迁移历史）不再拒绝导入，改为预检警告（⚠，不阻断）并逐项说明；导入安全性由既有机制保证（只新建 profile 不覆盖现有配置、settings.yaml 备份后覆盖且可取消勾选、vendor 冲突只报告、`--ignore-scripts` 默认）。
+- host 工具 `dsh_migrate_import` 新增 `requireFresh: true` 严格模式：目标机必须为原生未动状态，否则拒绝（回归旧行为，供自动化/CI/演示等确定性场景）。
+- UI 预检支持三态：✗（error 阻断）/ ⚠（warn 放行）/ ✓；确认框在目标机非原生时追加醒目提示。
+- 测试：`freshness-check` 重写（原生通过 / 三类脏目标 warn 放行 / requireFresh 严格模式拒绝 / 严格模式+原生通过），全量回归绿。
+
 ## 0.0.7 (2026-08-19)
 
 - 收录安全审查与核查文档：`docs/SECURITY_REVIEW.md` + `docs/VERIFICATION.md`（README / README_EN 双语加链接；tarball `files` 已含 `docs/`，发布物自带安全记录）。

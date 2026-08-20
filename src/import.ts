@@ -22,9 +22,16 @@ export interface ImportOptions {
   skipInstall?: boolean     // 测试/预览：跳过 pnpm install 与依赖级验证
   dryRun?: boolean          // 只做预检与计划，不写任何东西
   allowScripts?: boolean    // 默认 false：pnpm install --ignore-scripts（SECURITY_REVIEW F3）
+  requireFresh?: boolean    // 默认 false：目标机已使用（target-used warn）放行；true=严格模式（目标机必须原生未动，否则拒绝）
 }
 
-export interface Check { name: string; ok: boolean; detail?: string }
+export interface Check {
+  name: string
+  ok: boolean
+  detail?: string
+  /** 'warn' = 软门禁：展示但不阻断导入（预检通过）；缺省 'error' = 硬阻断。 */
+  severity?: 'error' | 'warn'
+}
 
 export interface ImportPlan {
   manifest: Manifest
@@ -99,7 +106,9 @@ function buildPlan(archive: string, manifest: Manifest, opts: ImportOptions): Im
   const checks: Check[] = []
   const warnings: string[] = []
 
-  // target-freshness: 目标 DSH 必须是"原生未动"状态，否则拒绝（防止破坏现有自定义配置）
+  // target-used（软门禁）：报告目标机已使用程度，warn 不阻断导入——导入本身只新建
+  // profile（不覆盖现有配置）、settings.yaml 备份后覆盖（可取消勾选）、vendor 冲突只报告，
+  // 安全兜底已由这些机制保证。requireFresh=true 时提升为 error（严格模式，恢复"必须原生未动"）。
   {
     const vendorDir = join(targetHome, 'vendor')
     const profilesDir = join(targetHome, 'profiles')
@@ -110,18 +119,19 @@ function buildPlan(archive: string, manifest: Manifest, opts: ImportOptions): Im
       ? readdirSync(profilesDir, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== 'node_modules').map((e) => e.name)
       : []
     const hasBackup = existsSync(join(targetHome, '.dshmig-backup'))
-    // 全新空 home（从未启动）或只有 web profile 都视为"原生未动"
-    const fresh = !vendorHasPkg && (profiles.length === 0 || (profiles.length === 1 && profiles[0] === 'web')) && !hasBackup
+    const reasons = [
+      vendorHasPkg ? 'vendor/ 有注入包（非原生）' : '',
+      profiles.length > 1 || (profiles.length === 1 && profiles[0] !== 'web') ? `已有非默认 profile: ${profiles.filter((p) => p !== 'web').join(', ')}` : '',
+      hasBackup ? '存在迁移历史（.dshmig-backup/，本次会另建独立备份）' : '',
+    ].filter(Boolean)
+    const used = reasons.length > 0
     checks.push({
-      name: 'target-freshness',
-      ok: fresh,
-      detail: fresh
-        ? '目标 DSH 为原生未动状态，可安全迁移'
-        : [
-            vendorHasPkg ? 'vendor/ 有注入包（非原生）' : '',
-            profiles.length > 1 || (profiles.length === 1 && profiles[0] !== 'web') ? `已有非默认 profile: ${profiles.filter((p) => p !== 'web').join(', ')}` : '',
-            hasBackup ? '存在迁移历史（.dshmig-backup/）' : '',
-          ].filter(Boolean).join('; '),
+      name: 'target-used',
+      ok: !used,
+      severity: used ? (opts.requireFresh === true ? 'error' : 'warn') : undefined,
+      detail: used
+        ? reasons.join('; ')
+        : '目标机未使用（原生未动），可安全迁移',
     })
   }
 
@@ -176,7 +186,7 @@ export function importDsh(opts: ImportOptions): ImportResult {
     if (!existsSync(opts.archive)) return { ok: false, dryRun: opts.dryRun === true, error: `archive not found: ${opts.archive}` }
     const manifest = parseManifest(readZipText(opts.archive, 'manifest.json'))
     const plan = buildPlan(opts.archive, manifest, opts)
-    const fatal = plan.checks.filter((c) => !c.ok)
+    const fatal = plan.checks.filter((c) => !c.ok && c.severity !== 'warn')
     if (fatal.length > 0) {
       return { ok: false, dryRun: opts.dryRun === true, plan, error: `preflight failed: ${fatal.map((c) => c.name).join(', ')}` }
     }
@@ -336,7 +346,7 @@ export function importDsh(opts: ImportOptions): ImportResult {
         try { rmdirSync(join(resolve(opts.home ?? resolveDshHome()), '.dshmig-staging')) } catch { /* 并发导入仍在用：忽略 */ }
       }
       rolled.push('removed staging')
-      // 回滚后本次备份已冗余（settings 已恢复/删除），删除以保持目标机"原生未动"状态（target-freshness 可重试）
+      // 回滚后本次备份已冗余（settings 已恢复/删除），删除以保持目标机干净状态（重复导入时 target-used 只报告迁移历史，不阻断）
       if (backupDirCreated && backupDir) {
         rmSync(backupDir, { recursive: true, force: true })
         if (!backupRootExisted) rmSync(join(resolve(opts.home ?? resolveDshHome()), '.dshmig-backup'), { recursive: true, force: true })

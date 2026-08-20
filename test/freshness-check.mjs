@@ -1,4 +1,4 @@
-// target-freshness 沙箱验证：原生（空 home）通过 + 脏机拒绝。
+// target-used 软门禁沙箱验证：原生通过 + 脏机警告放行（不阻断）+ requireFresh 严格模式拒绝。
 import { importDsh } from '../lib/import.js'
 import { createArchive } from '../lib/archive.js'
 import { buildManifest, hashContent } from '../lib/manifest.js'
@@ -37,25 +37,42 @@ createArchive([
   { path: 'vendor/fake-pkg/cordis.patch.yml', absPath: vendorSrc + '/cordis.patch.yml' },
 ], archive)
 
-const freshness = (label, expectPass) => {
-  const r = importDsh({ archive, home, dryRun: true })
-  const c = r.plan?.checks.find((x) => x.name === 'target-freshness')
-  const ok = c?.ok === expectPass
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label} | detail: ${c?.detail ?? r.error}`)
-  return ok
+let all = true
+const tc = (label, expect) => {
+  const r = importDsh({ archive, home, dryRun: true, ...(expect.opts ?? {}) })
+  const c = r.plan?.checks.find((x) => x.name === 'target-used')
+  const checkOk = c?.ok === expect.ok && (expect.severity === undefined || c?.severity === expect.severity)
+  const overallOk = r.ok === expect.dryRunOk
+  const pass = checkOk && overallOk
+  if (!pass) all = false
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${label} | check: ok=${c?.ok} sev=${c?.severity ?? '-'} | dryRun.ok=${r.ok} | detail: ${c?.detail ?? r.error ?? '-'}`)
+  return pass
 }
 
-let all = true
-all = freshness('1. fresh empty home passes', true) && all
+// 1. 原生（空 home）通过、无 warn
+tc('1. fresh empty home passes, no warn', { ok: true, severity: undefined, dryRunOk: true })
+
+// 2. 已有非默认 profile → warn 放行（不阻断）
 mkdirSync(home + '/profiles/extra', { recursive: true })
 writeFileSync(home + '/profiles/extra/package.json', '{}')
-all = freshness('2. extra profile rejected', false) && all
+tc('2. extra profile -> warn, NOT blocked', { ok: false, severity: 'warn', dryRunOk: true })
+
+// 3. requireFresh 严格模式 + 脏目标 → error 阻断
+tc('3. requireFresh + dirty -> blocked', { ok: false, severity: 'error', dryRunOk: false, opts: { requireFresh: true } })
 rmSync(home + '/profiles/extra', { recursive: true, force: true })
+
+// 4. vendor 有包 → warn 放行
 mkdirSync(home + '/vendor/somepkg', { recursive: true })
-all = freshness('3. vendor pkg rejected', false) && all
+tc('4. vendor pkg -> warn, NOT blocked', { ok: false, severity: 'warn', dryRunOk: true })
 rmSync(home + '/vendor', { recursive: true, force: true })
+
+// 5. 迁移历史（.dshmig-backup/）→ warn 放行
 mkdirSync(home + '/.dshmig-backup', { recursive: true })
-all = freshness('4. backup history rejected', false) && all
+tc('5. backup history -> warn, NOT blocked', { ok: false, severity: 'warn', dryRunOk: true })
+rmSync(home + '/.dshmig-backup', { recursive: true, force: true })
+
+// 6. requireFresh + 原生 → 仍通过
+tc('6. requireFresh + fresh -> passes', { ok: true, severity: undefined, dryRunOk: true, opts: { requireFresh: true } })
 
 rmSync(sandbox, { recursive: true, force: true })
 console.log(all ? 'ALL PASS' : 'SOME FAILED')

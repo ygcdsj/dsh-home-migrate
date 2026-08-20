@@ -257,15 +257,18 @@ function createPanel(): HTMLElement {
       try {
         if (selectedFile && !selectedData) selectedData = await fileToBase64(selectedFile)
         const data = await api('/dsh-migrate/api/import-dryrun', bodyFor())
-        const plan = data.plan as { newProfile: string; checks: { name: string; ok: boolean; detail?: string }[]; steps: string[]; warnings: string[] } | undefined
+        const plan = data.plan as { newProfile: string; checks: { name: string; ok: boolean; detail?: string; severity?: 'error' | 'warn' }[]; steps: string[]; warnings: string[] } | undefined
         // 预检失败但 plan 存在（checks 明细可展示）→ 显示错误行 + 逐项明细；plan 缺失才用纯错误页
         if (!plan) {
           setContent(el('div', {}, errorBox(String(data.error ?? 'unknown')), el('button', { class: 'dshmig-btn', 'data-act': 'back', style: { marginTop: '8px' } }, L('返回', 'Back'))))
           content.querySelector('[data-act="back"]')!.addEventListener('click', importView)
           return
         }
-        const allOk = plan.checks.every((c) => c.ok)
-        const fatal = plan.checks.filter((c) => !c.ok)
+        // 三态：error（✗ 阻断）/ warn（⚠ 放行）/ ok（✓）；warn 不阻断导入
+        const fatal = plan.checks.filter((c) => !c.ok && c.severity !== 'warn')
+        const warns = plan.checks.filter((c) => !c.ok && c.severity === 'warn')
+        const allOk = fatal.length === 0
+        const warnDetail = warns.map((c) => `${c.name} — ${c.detail ?? ''}`).join('；')
         const sr = data.secretReport as { redactedFields?: unknown[]; unscannedFiles?: string[]; unscannedTotal?: number } | undefined
         const unscannedCount = sr?.unscannedFiles?.length ?? 0
         const unscannedTotal = sr?.unscannedTotal ?? unscannedCount
@@ -273,10 +276,13 @@ function createPanel(): HTMLElement {
           el('h4', {}, L('预检结果', 'Preflight')),
           ...(fatal.length > 0
             ? [el('div', { style: { color: '#f85149', padding: '6px 0', fontWeight: 600 } }, L('✗ 预检未通过：', '✗ Preflight failed: ') + fatal.map((c) => c.name).join(', '))]
-            : []),
+            : warns.length > 0
+              ? [el('div', { style: { color: '#d29922', padding: '6px 0', fontWeight: 600 } },
+                L('⚠ 预检通过，但目标机不是原生未动状态：', '⚠ Preflight passed, but the target is not pristine: ') + warnDetail)]
+              : []),
           row(L('新 profile', 'new profile'), plan.newProfile),
-          ...plan.checks.map((c) => el('div', { style: { color: c.ok ? '#3fb950' : '#f85149', padding: '2px 0' } },
-            `${c.ok ? '✓' : '✗'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)),
+          ...plan.checks.map((c) => el('div', { style: { color: !c.ok && c.severity !== 'warn' ? '#f85149' : !c.ok ? '#d29922' : '#3fb950', padding: '2px 0' } },
+            `${c.ok ? '✓' : c.severity === 'warn' ? '⚠' : '✗'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)),
           ...(sr && unscannedTotal > 0 ? [row(L('未扫描文件', 'unscanned'), String(unscannedTotal) + (unscannedCount < unscannedTotal ? L('（列表截断）', ' (truncated)') : ''))] : []),
           ...(plan.warnings.length ? [el('div', { style: { color: '#d29922', padding: '4px 0' } }, '⚠ ' + plan.warnings.join('; '))] : []),
           ...(allOk ? [
@@ -293,9 +299,13 @@ function createPanel(): HTMLElement {
         if (!run) return
         run.addEventListener('click', () => {
           const stepsText = plan.steps.map((s) => '· ' + s).join('\n')
+          const warnLine = warns.length > 0
+            ? L(`\n\n⚠ 目标机已有内容（${warnDetail}）。导入只新建 profile、不覆盖现有配置；settings.yaml 将备份后覆盖（可在执行前重新预检并选择跳过）。`,
+                `\n\n⚠ The target already has content (${warnDetail}). Import only creates a NEW profile and never overwrites existing ones; settings.yaml will be backed up then overwritten (skip it via includeSettings if unwanted).`)
+            : ''
           if (!window.confirm(L(
-            `⚠ 导入归档 = 执行其中的插件代码与安装脚本（pnpm 默认 --ignore-scripts，但 bundle 插件仍会被解析/加载）。仅导入你信任的来源！\n\n将导入到新 profile「${plan.newProfile}」并执行：\n${stepsText}\n\n继续？`,
-            `⚠ Importing an archive EXECUTES the plugin code and install scripts it contains (pnpm uses --ignore-scripts by default, but bundle plugins are still parsed/loaded). Only import archives from sources you trust!\n\nImport into new profile "${plan.newProfile}":\n${stepsText}\n\nProceed?`))) return
+            `⚠ 导入归档 = 执行其中的插件代码与安装脚本（pnpm 默认 --ignore-scripts，但 bundle 插件仍会被解析/加载）。仅导入你信任的来源！\n\n将导入到新 profile「${plan.newProfile}」并执行：\n${stepsText}${warnLine}\n\n继续？`,
+            `⚠ Importing an archive EXECUTES the plugin code and install scripts it contains (pnpm uses --ignore-scripts by default, but bundle plugins are still parsed/loaded). Only import archives from sources you trust!\n\nImport into new profile "${plan.newProfile}":\n${stepsText}${warnLine}\n\nProceed?`))) return
           run.disabled = true
           busy(L('导入中（含 pnpm install，可能较久）…', 'Importing (pnpm install may take a while)'))
           void api('/dsh-migrate/api/import', bodyFor()).then((r2) => {

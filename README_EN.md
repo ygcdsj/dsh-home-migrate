@@ -105,6 +105,8 @@ dev_inject_plugin <this directory>
 
 **Cross-OS migration?** MVP is same-OS only; cross-OS is rejected at preflight.
 
+**Can I import into a machine that's already been used (plugins/skins installed)?** Yes. Import only creates a NEW profile (`<name>-migrated`) and never touches your existing profiles; settings.yaml is backed up before being overwritten (uncheck it before importing if unwanted); same-name vendor packages are skipped or verified identical, conflicts are reported only. The `target-used` preflight item shows a warning (⚠) describing the target state (vendor packages / non-default profiles / migration history) but does **not** block the import; for strict mode ("target must be pristine"), pass `requireFresh: true` to the host tool.
+
 **What about git: dependencies (skins)?** Not packaged; re-fetched by `pnpm install` on the target (network/credentials required; preflight warns).
 
 **Is import safe?** Import executes code inside the archive (pnpm install scripts + bundle plugin parsing; starting the profile later runs the plugins), so **only import archives from sources you trust**. `--ignore-scripts` is on by default; path fields are allow-listed with landing assertions; the HTTP API is loopback-only + token-gated.
