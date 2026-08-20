@@ -69,7 +69,7 @@ dev_inject_plugin <本目录>
 > dsh --profile web-migrated     # 启动迁移后的 profile（GUI）
 > ```
 >
-> 用 `dsh web` 打开的是未迁移的原生环境，自然看不到迁移过来的插件/皮肤/设置，这不是故障。`web` 是 dsh CLI 的**硬编码别名**（`dsh web` ≡ `dsh --profile web`），DSH 没有默认 profile 也没有切换命令。要让 `dsh web` 直接启动迁移后的环境，唯一方式是**重命名 profile 目录**：确认迁移无误后，先停用/移走旧 `web` 目录，再把 `<name>-migrated` 重命名为 `web`（两者都在 `$DSH_HOME/profiles/` 下）；不确定时继续用 `dsh --profile <name>-migrated` 显式启动。
+> 用 `dsh web` 打开的是未迁移的原生环境，自然看不到迁移过来的插件/皮肤/设置，这不是故障。`web` 是 dsh CLI 的**硬编码别名**（`dsh web` ≡ `dsh --profile web`），DSH 没有默认 profile 也没有切换命令。要让 `dsh web` 直接启动迁移后的环境，唯一方式是**重命名 profile 目录**：确认迁移无误后，先停用/移走旧 `web` 目录，再把 `<name>-migrated` 重命名为 `web`（两者都在 `$DSH_HOME/profiles/` 下）；不确定时继续用 `dsh --profile <name>-migrated` 显式启动。⚠ 目录改名后 pnpm 会报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE`（虚拟商店路径失配，pnpm 已知行为），修复方法见 FAQ。
 
 > 导入全程不覆盖你现有的 profile；任何一步失败自动回滚。
 
@@ -107,6 +107,10 @@ dev_inject_plugin <本目录>
 **跨 OS 可以迁移吗？** MVP 限定同 OS；跨 OS 会在预检阶段明确拒绝。
 
 **目标机已经用过（装过插件/皮肤）还能导入吗？** 可以。导入只新建 profile（`<name>-migrated`），不覆盖你现有的任何 profile；settings.yaml 会先备份再覆盖（导入前可取消勾选）；vendor 同名包跳过或校验一致、冲突只报告不覆盖。预检的 `target-used` 项会以警告（⚠）提示目标机状态（已有 vendor 包 / 非默认 profile / 迁移历史），**不阻断导入**；需要"目标机必须原生未动"的严格模式时，host 工具可传 `requireFresh: true`。
+
+**重命名 profile 目录后 `dsh plugin` 报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE` 怎么办？** pnpm 会把虚拟商店的**绝对路径**写进 `node_modules/.modules.yaml`（`virtualStoreDir` 字段），profile 目录改名/复制后该路径失配，pnpm 就拒绝一切增删改——这是 pnpm 的已知行为，与迁移工具无关（`dsh web` 仍能正常启动，因为运行时加载走链接、不校验这个字段）。解决：停掉 dsh → 删除该 profile 目录下的 `node_modules`（`pnpm-lock.yaml` 在目录里不会丢）→ 重新执行 `dsh plugin --profile <name> add <pkg>`（或在该目录跑 `pnpm install`），pnpm 会按锁文件重建全部依赖。
+
+**迁移包里为什么没有 dsh-migrate 自己？** 迁移搬运的是 profile 的声明依赖（vendor/ 包 + 注册表依赖）与配置；dsh-migrate 若是在本机通过运行时注入（super-injector）挂载的，就不在 profile 依赖里，因此不会随迁移携带——这符合"迁移内容 = profile 内容"的边界。目标机装一次即可：`dsh plugin --profile <name> add dsh-migrate`（npm 最新版）。
 
 **git: 依赖（skin 类）怎么办？** 不打包，目标机 `pnpm install` 时重新拉取（需网络/凭据），预检会提示。
 

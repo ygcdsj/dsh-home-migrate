@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- 文档：FAQ 补充「重命名 profile 目录后 `dsh plugin` 报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE`」——pnpm 把虚拟商店绝对路径写进 `node_modules/.modules.yaml`，目录改名/复制后失配即报错（pnpm 已知行为，运行时加载不受影响）；修复 = 删除该目录 `node_modules` 后重跑 `dsh plugin ... add`（按 `pnpm-lock.yaml` 重建）。「启动迁移后的 profile」引导处同步加了 ⚠ 提示。
+- 文档：FAQ 补充「迁移包里为什么没有 dsh-migrate 自己」——运行时注入（super-injector）挂载的模块不属于 profile 内容，不随迁移携带；目标机 `dsh plugin --profile <name> add dsh-migrate` 安装一次即可。
+
 ## 0.0.8 (2026-08-19)
 
 - **target-freshness 硬门禁 → `target-used` 软门禁**：目标机已使用（vendor/ 有包、已有非默认 profile、存在 `.dshmig-backup/` 迁移历史）不再拒绝导入，改为预检警告（⚠，不阻断）并逐项说明；导入安全性由既有机制保证（只新建 profile 不覆盖现有配置、settings.yaml 备份后覆盖且可取消勾选、vendor 冲突只报告、`--ignore-scripts` 默认）。

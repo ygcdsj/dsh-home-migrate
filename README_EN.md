@@ -69,7 +69,7 @@ dev_inject_plugin <this directory>
 > dsh --profile web-migrated      # boot the migrated profile (GUI)
 > ```
 >
-> Running `dsh web` opens the untouched native environment, so migrated plugins/skins/settings won't show up there — that is expected, not a fault. `web` is a **hardcoded alias** in the dsh CLI (`dsh web` ≡ `dsh --profile web`); DSH has no default-profile mechanism and no switch command. The only way to make `dsh web` boot the migrated environment is to **rename the profile directory**: once verified, retire/move the old `web` directory, then rename `<name>-migrated` to `web` (both live under `$DSH_HOME/profiles/`). Until then, keep launching explicitly with `dsh --profile <name>-migrated`.
+> Running `dsh web` opens the untouched native environment, so migrated plugins/skins/settings won't show up there — that is expected, not a fault. `web` is a **hardcoded alias** in the dsh CLI (`dsh web` ≡ `dsh --profile web`); DSH has no default-profile mechanism and no switch command. The only way to make `dsh web` boot the migrated environment is to **rename the profile directory**: once verified, retire/move the old `web` directory, then rename `<name>-migrated` to `web` (both live under `$DSH_HOME/profiles/`). Until then, keep launching explicitly with `dsh --profile <name>-migrated`. ⚠ After renaming the directory, pnpm may fail with `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE` (virtual-store path mismatch, a known pnpm behavior) — see the FAQ for the fix.
 
 > Import never overwrites your existing profile; any failure rolls back automatically.
 
@@ -106,6 +106,10 @@ dev_inject_plugin <this directory>
 **Cross-OS migration?** MVP is same-OS only; cross-OS is rejected at preflight.
 
 **Can I import into a machine that's already been used (plugins/skins installed)?** Yes. Import only creates a NEW profile (`<name>-migrated`) and never touches your existing profiles; settings.yaml is backed up before being overwritten (uncheck it before importing if unwanted); same-name vendor packages are skipped or verified identical, conflicts are reported only. The `target-used` preflight item shows a warning (⚠) describing the target state (vendor packages / non-default profiles / migration history) but does **not** block the import; for strict mode ("target must be pristine"), pass `requireFresh: true` to the host tool.
+
+**`dsh plugin` fails with `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE` after renaming a profile directory?** pnpm records the virtual store's **absolute path** in `node_modules/.modules.yaml` (`virtualStoreDir`); renaming/copying the profile directory makes that path stale and pnpm refuses any mutation — a known pnpm behavior, unrelated to this tool (`dsh web` still boots because runtime loading follows the links, it does not check this field). Fix: stop dsh → delete the profile's `node_modules` (`pnpm-lock.yaml` stays in the profile dir) → re-run `dsh plugin --profile <name> add <pkg>` (or `pnpm install` in that directory) to rebuild everything from the lockfile.
+
+**Why isn't dsh-migrate itself in the migration archive?** The migration carries a profile's declared dependencies (vendor/ packages + registry dependencies) and configuration. If dsh-migrate is mounted via runtime injection (super-injector) on your machine, it is not a profile dependency and therefore never migrates — consistent with "migration content = profile content". Install it once on the target: `dsh plugin --profile <name> add dsh-migrate` (latest from npm).
 
 **What about git: dependencies (skins)?** Not packaged; re-fetched by `pnpm install` on the target (network/credentials required; preflight warns).
 
