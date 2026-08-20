@@ -22,7 +22,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => [
     ctx.tools.register(defineTool({
       name: 'dsh_migrate_export',
-      description: '导出 DSH 配置迁移归档（.dshmig）。dryRun=true（默认安全，省略即预览）返回预览：文件清单/总大小/排除项/link 依赖/疑似凭据/未扫描文件；dryRun=false 打包产物并返回路径与 manifest 摘要。凭据尽力硬排除+脱敏（secretReport 含 unscannedFiles 供核对），归档仅导入你信任的来源。',
+      description: '导出 DSH 配置迁移归档（.dshmig）。dryRun=true（默认安全，省略即预览）返回预览：文件清单/总大小/排除项/link 依赖/疑似凭据/未扫描文件；dryRun=false 打包产物并返回路径与 manifest 摘要。导出会自动把 dsh-migrate 自身附加进归档 profile（目标机导入后自带迁移工具）。凭据尽力硬排除+脱敏（secretReport 含 unscannedFiles 供核对），归档仅导入你信任的来源。',
       parameters: {
         dryRun: { type: 'boolean', description: 'true=仅预览（默认）；false=真正打包' },
         outDir: { type: 'string', description: '产物目录（默认 ~/dsh-migrate-exports）' },

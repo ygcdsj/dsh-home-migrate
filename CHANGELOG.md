@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.0.9 (2026-08-20)
 
+- **自携带（体验修复）**：导出时自动把 dsh-migrate 自身附加进归档内 profile（`dependencies` 加 `dsh-migrate@^<版本>` + `dsh.profile.bundles` 追加），目标机导入后即自带迁移工具，无需手动安装——解决"迁移不带自己"（super-injector 运行时注入的工具不在 profile 依赖里，旧版不随迁移走）。幂等：profile 已显式依赖时不重复附加；dry-run 预览与导出报告会提示；源机文件只读不改。新增 `test/carry-self.mjs` 端到端回归。
 - 文档：FAQ 补充「重命名 profile 目录后 `dsh plugin` 报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE`」——pnpm 把虚拟商店绝对路径写进 `node_modules/.modules.yaml`，目录改名/复制后失配即报错（pnpm 已知行为，运行时加载不受影响）；修复 = 删除该目录 `node_modules` 后重跑 `dsh plugin ... add`（按 `pnpm-lock.yaml` 重建）。「启动迁移后的 profile」引导处同步加了 ⚠ 提示。
-- 文档：FAQ 补充「迁移包里为什么没有 dsh-migrate 自己」——运行时注入（super-injector）挂载的模块不属于 profile 内容，不随迁移携带；目标机 `dsh plugin --profile <name> add dsh-migrate` 安装一次即可。
+- 文档：FAQ「迁移包里为什么没有 dsh-migrate 自己」更新为「迁移包会带 dsh-migrate 自己吗」——0.0.9 起自动携带；历史版本（≤0.0.8）不带的成因与手动安装命令仍记录在案。
 
 ## 0.0.8 (2026-08-19)
 

@@ -110,7 +110,7 @@ dev_inject_plugin <本目录>
 
 **重命名 profile 目录后 `dsh plugin` 报 `ERR_PNPM_UNEXPECTED_VIRTUAL_STORE` 怎么办？** pnpm 会把虚拟商店的**绝对路径**写进 `node_modules/.modules.yaml`（`virtualStoreDir` 字段），profile 目录改名/复制后该路径失配，pnpm 就拒绝一切增删改——这是 pnpm 的已知行为，与迁移工具无关（`dsh web` 仍能正常启动，因为运行时加载走链接、不校验这个字段）。解决：停掉 dsh → 删除该 profile 目录下的 `node_modules`（`pnpm-lock.yaml` 在目录里不会丢）→ 重新执行 `dsh plugin --profile <name> add <pkg>`（或在该目录跑 `pnpm install`），pnpm 会按锁文件重建全部依赖。
 
-**迁移包里为什么没有 dsh-migrate 自己？** 迁移搬运的是 profile 的声明依赖（vendor/ 包 + 注册表依赖）与配置；dsh-migrate 若是在本机通过运行时注入（super-injector）挂载的，就不在 profile 依赖里，因此不会随迁移携带——这符合"迁移内容 = profile 内容"的边界。目标机装一次即可：`dsh plugin --profile <name> add dsh-migrate`（npm 最新版）。
+**迁移包会带 dsh-migrate 自己吗？** 从 0.0.9 起**会**：导出时工具自动把自身附加进归档内 profile（`dependencies` 加 `dsh-migrate@^<版本>` + `dsh.profile.bundles` 追加），目标机导入后即自带迁移工具，无需手动安装（幂等：profile 已显式依赖时不重复附加；导入会从 npm 安装，需网络）。历史版本（≤0.0.8）不带：迁移只搬运 profile 的声明内容，而通过运行时注入（super-injector）挂载的工具不在 profile 依赖里——那时需目标机手动 `dsh plugin --profile <name> add dsh-migrate`。
 
 **git: 依赖（skin 类）怎么办？** 不打包，目标机 `pnpm install` 时重新拉取（需网络/凭据），预检会提示。
 

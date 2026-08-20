@@ -194,6 +194,7 @@ migrate-<profile>-<yyyyMMdd-HHmmss>.dshmig
 **扫描规则**（include 白名单 + 硬排除黑名单）：
 
 - 包含：`settings.yaml`（脱敏后）、`profiles/*/{package.json, cordis.yml, cordis.patch.yml, pnpm-workspace.yaml}`、`.agent-presets/**`、`vendor/**`（仅被 link: 引用的包；孤立的 vendor 包跳过并报告）
+- **自携带（0.0.9+）**：导出时把运行中的本工具（dsh-migrate）自动附加进归档内各 profile 的 package.json（`dependencies` + `dsh.profile.bundles`，幂等），目标机导入后即自带迁移工具；dry-run 预览与导出报告提示「已自动附加」。源机文件只读不改
 - 硬排除：`.pnpm-store/`、`profiles/*/node_modules/`、`profiles/node_modules/`、`sessions/`、`storages/`、`usage-stats/`、`super-injector/`、`.anonymous-user-id`、`.credentials.yaml`、`.env*`、`profiles/*/.dsh-skin-market/`、各类 cache/log/tmp
 - **dry-run 模式（默认）**：输出文件清单、总大小、排除项、疑似凭据数 → 用户确认后才真正打包
 
