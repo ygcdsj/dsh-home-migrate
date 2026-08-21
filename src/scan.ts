@@ -89,6 +89,8 @@ function collectLinks(profileDir: string, home: string, plan: ExportPlan): void 
       throw new Error(`unsafe link target rejected (outside <home>/vendor): ${dep} -> ${target}`)
     }
     const vendorRel = relative(resolve(join(home, 'vendor')), target).split(sep).join('/')
+    // 去重：多个 profile 引用同一 vendor 包时，同一 dep 只记一条 link（避免 vendor 文件/link 重复 N 次）
+    if (plan.links.some((l) => l.dep === dep)) continue
     plan.links.push({ dep, vendorRelPath: 'vendor/' + vendorRel, absPath: target })
   }
 }
@@ -148,6 +150,10 @@ export function scanHome(homeOverride?: string): ExportPlan {
   for (const name of ['sessions', 'storages', 'usage-stats', 'super-injector', '.pnpm-store', '.anonymous-user-id', '.credentials.yaml', '.env']) {
     if (existsSync(join(home, name))) plan.excluded.push(name + (lstatSync(join(home, name)).isDirectory() ? '/' : ''))
   }
+
+  // 文件去重（纵深防御）：同一 relPath 只保留第一份——link 已按 dep 去重，但不同 dep 指向同一 vendor 目录时仍会重复扫描
+  const seenRel = new Set<string>()
+  plan.files = plan.files.filter((f) => (seenRel.has(f.relPath) ? false : (seenRel.add(f.relPath), true)))
 
   plan.totalBytes = plan.files.reduce((sum, f) => sum + f.size, 0)
   return plan

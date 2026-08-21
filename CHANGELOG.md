@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10 (2026-08-21)
+
+- **修复导出去重**：多个 profile 共享同一 vendor 包时，`scanHome` 会按 profile 逐个扫描，导致归档内 vendor 文件 / `links` / manifest 条目重复 N 倍（归档膨胀、导入警告与验证重复）。修复：`collectLinks` 按 `dep` 去重（同一依赖只记一条 link）+ 扫描结果按 `relPath` 去重（纵深防御，覆盖不同 dep 指向同一 vendor 目录的边角）。新增 `test/export-dedup.mjs` 回归（双 profile 共享 vendor：plan/manifest/归档均无重复、导入无重复警告）。
+
 ## 0.0.9 (2026-08-20)
 
 - **自携带（体验修复）**：导出时自动把 dsh-migrate 自身附加进归档内 profile（`dependencies` 加 `dsh-migrate@^<版本>` + `dsh.profile.bundles` 追加），目标机导入后即自带迁移工具，无需手动安装——解决"迁移不带自己"（super-injector 运行时注入的工具不在 profile 依赖里，旧版不随迁移走）。幂等：profile 已显式依赖时不重复附加；dry-run 预览与导出报告会提示；源机文件只读不改。新增 `test/carry-self.mjs` 端到端回归。
